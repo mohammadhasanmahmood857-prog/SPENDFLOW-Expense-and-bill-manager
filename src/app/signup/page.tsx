@@ -1,11 +1,21 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
+import { Suspense } from "react";
 import { signUp } from "@/app/actions";
 import { Brand } from "@/components/brand";
 import { Notice } from "@/components/notice";
+import { Button } from "@/components/ui/button";
 import { getSupabaseConfig } from "@/lib/supabase/config";
 
-export default async function SignupPage({ searchParams }: PageProps<"/signup">) {
+export default function SignupPage({ searchParams }: { searchParams: Promise<{ error?: string }> }) {
+  return (
+    <Suspense fallback={<main className="grid min-h-screen place-items-center text-sm text-[#788480]">Loading your sign-up form…</main>}>
+      <SignupContent searchParams={searchParams} />
+    </Suspense>
+  );
+}
+
+async function SignupContent({ searchParams }: { searchParams: Promise<{ error?: string }> }) {
   const params = await searchParams;
   if (getSupabaseConfig()) {
     const { createClient } = await import("@/lib/supabase/server");
@@ -36,7 +46,7 @@ export default async function SignupPage({ searchParams }: PageProps<"/signup">)
             <label className="label">Your name<input className="field" name="display_name" type="text" autoComplete="name" maxLength={80} required /></label>
             <label className="label">Email address<input className="field" name="email" type="email" autoComplete="email" required /></label>
             <label className="label">Password<span className="text-[11px] font-normal text-[#788480]">At least 8 characters</span><input className="field" name="password" type="password" autoComplete="new-password" minLength={8} required /></label>
-            <button type="submit" className="button mt-2 w-full" disabled={!getSupabaseConfig()}>Create account</button>
+            <Button type="submit" className="mt-2 w-full" disabled={!getSupabaseConfig()}>Create account</Button>
           </form>
           <p className="mt-6 text-center text-sm text-[#788480]">Already have an account? <Link href="/login" className="font-semibold text-[#265be8] hover:underline">Log in</Link></p>
         </div>

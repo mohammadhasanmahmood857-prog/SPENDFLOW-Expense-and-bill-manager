@@ -1,13 +1,23 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
+import { Suspense } from "react";
 import { signIn } from "@/app/actions";
 import { Brand } from "@/components/brand";
 import { Notice } from "@/components/notice";
+import { Button } from "@/components/ui/button";
 import { getSupabaseConfig } from "@/lib/supabase/config";
 
-export default async function LoginPage({
+export default function LoginPage({ searchParams }: { searchParams: Promise<{ error?: string; notice?: string }> }) {
+  return (
+    <Suspense fallback={<AuthLoading label="Loading your sign-in form…" />}>
+      <LoginContent searchParams={searchParams} />
+    </Suspense>
+  );
+}
+
+async function LoginContent({
   searchParams,
-}: PageProps<"/login">) {
+}: { searchParams: Promise<{ error?: string; notice?: string }> }) {
   const params = await searchParams;
   if (getSupabaseConfig()) {
     const { createClient } = await import("@/lib/supabase/server");
@@ -38,11 +48,15 @@ export default async function LoginPage({
           <form action={signIn} className="grid gap-4">
             <label className="label">Email address<input className="field" name="email" type="email" autoComplete="email" required /></label>
             <label className="label">Password<input className="field" name="password" type="password" autoComplete="current-password" required /></label>
-            <button type="submit" className="button mt-2 w-full" disabled={!getSupabaseConfig()}>Log in</button>
+            <Button type="submit" className="mt-2 w-full" disabled={!getSupabaseConfig()}>Log in</Button>
           </form>
           <p className="mt-6 text-center text-sm text-[#788480]">New to SpendFlow? <Link href="/signup" className="font-semibold text-[#265be8] hover:underline">Create an account</Link></p>
         </div>
       </section>
     </main>
   );
+}
+
+function AuthLoading({ label }: { label: string }) {
+  return <main className="grid min-h-screen place-items-center text-sm text-[#788480]">{label}</main>;
 }

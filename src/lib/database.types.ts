@@ -34,36 +34,41 @@ export type Bill = {
   created_at: string;
 };
 
-type Table<Row, Insert, Update = Partial<Insert>> = {
-  Row: Row;
-  Insert: Insert;
-  Update: Update;
-  Relationships: [];
-};
-
 export type Database = {
   public: {
     Tables: {
-      profiles: Table<
-        { id: string; display_name: string; currency: string; created_at: string },
-        { id: string; display_name?: string; currency?: string }
-      >;
-      transactions: Table<
-        Transaction,
-        Omit<Transaction, "id" | "created_at"> & { id?: string; created_at?: string }
-      >;
-      budgets: Table<
-        Budget,
-        Omit<Budget, "id" | "created_at"> & { id?: string; created_at?: string }
-      >;
-      bills: Table<
-        Bill,
-        Omit<Bill, "id" | "created_at"> & { id?: string; created_at?: string }
-      >;
+      profiles: {
+        Row: { id: string; display_name: string; currency: string; created_at: string };
+        Insert: { id: string; display_name?: string; currency?: string };
+        Update: { id?: string; display_name?: string; currency?: string };
+        Relationships: [];
+      };
+      transactions: {
+        Row: Transaction;
+        Insert: Omit<Transaction, "id" | "created_at"> & { id?: string; created_at?: string };
+        Update: Partial<Omit<Transaction, "id" | "created_at">> & { id?: string; created_at?: string };
+        Relationships: [];
+      };
+      budgets: {
+        Row: Budget;
+        Insert: Omit<Budget, "id" | "created_at"> & { id?: string; created_at?: string };
+        Update: Partial<Omit<Budget, "id" | "created_at">> & { id?: string; created_at?: string };
+        Relationships: [];
+      };
+      bills: {
+        Row: Bill;
+        Insert: Omit<Bill, "id" | "created_at" | "last_paid_at"> & {
+          id?: string;
+          created_at?: string;
+          last_paid_at?: string | null;
+        };
+        Update: Partial<Omit<Bill, "id" | "created_at">> & { id?: string; created_at?: string };
+        Relationships: [];
+      };
     };
-    Views: Record<string, never>;
-    Functions: Record<string, never>;
-    Enums: Record<string, never>;
-    CompositeTypes: Record<string, never>;
+    Views: { [_ in never]: never };
+    Functions: { [_ in never]: never };
+    Enums: { [_ in never]: never };
+    CompositeTypes: { [_ in never]: never };
   };
 };

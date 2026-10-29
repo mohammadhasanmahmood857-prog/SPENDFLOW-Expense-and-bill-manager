@@ -8,7 +8,7 @@ export async function updateSession(request: NextRequest) {
   if (!config) return NextResponse.next({ request });
 
   let response = NextResponse.next({ request });
-  const supabase = createServerClient<Database>(config.url, config.key, {
+  const supabase = createServerClient<Database, "public">(config.url, config.key, {
     cookies: {
       getAll() {
         return request.cookies.getAll();

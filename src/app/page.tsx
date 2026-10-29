@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { ArrowDownRight, ArrowUpRight, Check, ChevronRight, CircleDollarSign, FileText, WalletCards } from "lucide-react";
 import { Brand } from "@/components/brand";
+import { Button } from "@/components/ui/button";
 
 const features = [
   { icon: ArrowDownRight, title: "See the full picture", copy: "Income, spending, and the balance between them—without a spreadsheet." },
@@ -30,7 +31,7 @@ export default function Home() {
             SpendFlow brings your spending, budgets, and bills together—so the small decisions feel a little less uncertain.
           </p>
           <div className="mt-8 flex flex-wrap items-center gap-3">
-            <Link href="/signup" className="button min-h-12 px-5">Create your free account <ChevronRight size={16} /></Link>
+            <Button asChild className="min-h-12 px-5"><Link href="/signup">Create your free account <ChevronRight size={16} /></Link></Button>
             <span className="flex items-center gap-1.5 text-xs text-[#788480]"><Check size={14} className="text-[#1c8b69]" />Private by design</span>
           </div>
           <p className="mt-9 text-xs text-[#788480]">Built for real life, from your first expense onward.</p>

@@ -42,6 +42,10 @@ create table if not exists public.bills (
   created_at timestamptz not null default now()
 );
 
+grant usage on schema public to authenticated;
+grant select, insert, update, delete on public.profiles, public.transactions, public.budgets, public.bills
+  to authenticated;
+
 create index if not exists transactions_user_date_idx
   on public.transactions (user_id, transaction_date desc);
 create index if not exists transactions_user_category_idx
