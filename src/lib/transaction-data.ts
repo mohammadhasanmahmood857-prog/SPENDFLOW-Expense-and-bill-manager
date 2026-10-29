@@ -19,6 +19,7 @@ export async function listTransactions(
     if (range.from) query = query.gte("transaction_date", range.from);
     if (range.to) query = query.lte("transaction_date", range.to);
     const { data, error } = await query.order("transaction_date", { ascending: false })
+      .order("id", { ascending: true })
       .range(offset, offset + 999);
     if (error) throw new Error(`Could not load transactions: ${error.message}`);
     transactions.push(...data);

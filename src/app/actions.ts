@@ -2,10 +2,11 @@
 
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
+import { headers } from "next/headers";
 import { z } from "zod";
-import { CATEGORIES, nextDueDate } from "@/lib/finance";
+import { CATEGORIES } from "@/lib/finance";
+import { safeNextPath } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
-import type { Recurrence } from "@/lib/database.types";
 
 const transactionSchema = z.object({
   amount: z.coerce.number().positive().max(999999999),
@@ -23,6 +24,7 @@ const budgetSchema = z.object({
 const billSchema = z.object({
   name: z.string().trim().min(1).max(100),
   amount: z.coerce.number().positive().max(999999999),
+  category: z.enum(CATEGORIES),
   due_date: z.string().date(),
   recurrence: z.enum(["once", "weekly", "monthly", "yearly"]),
 });
@@ -38,59 +40,46 @@ async function getUser() {
   return { supabase, user };
 }
 
-async function getReceipt(supabase: Awaited<ReturnType<typeof createClient>>, userId: string, formData: FormData) {
-  const file = formData.get("receipt");
-  if (!(file instanceof File) || file.size === 0) return null;
-  const allowedTypes = ["image/jpeg", "image/png", "image/webp", "application/pdf"];
-  if (!allowedTypes.includes(file.type) || file.size > 5 * 1024 * 1024) {
-    throw new Error("Choose a JPG, PNG, WebP, or PDF file under 5 MB.");
-  }
-  const extensions: Record<string, string> = {
-    "image/jpeg": "jpg",
-    "image/png": "png",
-    "image/webp": "webp",
-    "application/pdf": "pdf",
-  };
-  const extension = extensions[file.type];
-  const path = `${userId}/${crypto.randomUUID()}.${extension}`;
-  const { error } = await supabase.storage.from("receipts").upload(path, file, {
-    contentType: file.type,
-    upsert: false,
-  });
-  if (error) throw new Error(`Receipt upload failed: ${error.message}`);
-  return path;
-}
-
 export async function signIn(formData: FormData) {
   const email = z.string().email().safeParse(formData.get("email"));
   const password = z.string().min(1).safeParse(formData.get("password"));
-  if (!email.success || !password.success) redirect(messageUrl("/login", "Enter a valid email and password."));
+  const next = safeNextPath(formData.get("next"));
+  if (!email.success || !password.success) {
+    redirect(`${messageUrl("/login", "Enter a valid email and password.")}&next=${encodeURIComponent(next)}`);
+  }
   const supabase = await createClient();
   const { error } = await supabase.auth.signInWithPassword({ email: email.data, password: password.data });
-  if (error) redirect(messageUrl("/login", error.message));
+  if (error) redirect(`${messageUrl("/login", error.message)}&next=${encodeURIComponent(next)}`);
   revalidatePath("/", "layout");
-  redirect("/dashboard");
+  redirect(next);
 }
 
 export async function signUp(formData: FormData) {
   const name = z.string().trim().min(1).max(80).safeParse(formData.get("display_name"));
   const email = z.string().email().safeParse(formData.get("email"));
   const password = z.string().min(8).safeParse(formData.get("password"));
+  const next = safeNextPath(formData.get("next"));
   if (!name.success || !email.success || !password.success) {
-    redirect(messageUrl("/signup", "Use a name, valid email, and password with at least 8 characters."));
+    redirect(`${messageUrl("/signup", "Use a name, valid email, and password with at least 8 characters.")}&next=${encodeURIComponent(next)}`);
   }
   const supabase = await createClient();
+  const requestHeaders = await headers();
+  const forwardedHost = requestHeaders.get("x-forwarded-host") || requestHeaders.get("host") || "localhost:3000";
+  const origin = process.env.NEXT_PUBLIC_SITE_URL
+    || `${requestHeaders.get("x-forwarded-proto") || "http"}://${forwardedHost}`;
+  const emailRedirectTo = new URL("/auth/confirm", origin);
+  emailRedirectTo.searchParams.set("next", next);
   const { data, error } = await supabase.auth.signUp({
     email: email.data,
     password: password.data,
-    options: { data: { display_name: name.data } },
+    options: { data: { display_name: name.data }, emailRedirectTo: emailRedirectTo.toString() },
   });
-  if (error) redirect(messageUrl("/signup", error.message));
+  if (error) redirect(`${messageUrl("/signup", error.message)}&next=${encodeURIComponent(next)}`);
   if (!data.session) {
-    redirect(messageUrl("/login", "Check your inbox to confirm your email, then sign in.", "notice"));
+    redirect(`${messageUrl("/login", "Check your inbox to confirm your email, then sign in.", "notice")}&next=${encodeURIComponent(next)}`);
   }
   revalidatePath("/", "layout");
-  redirect("/dashboard");
+  redirect(next);
 }
 
 export async function signOut() {
@@ -111,6 +100,15 @@ export async function saveTransaction(formData: FormData) {
   });
   if (!parsed.success) redirect(messageUrl("/dashboard/transactions", "Check the amount, category, type, and date."));
   const { supabase, user } = await getUser();
+  const rawReceiptPath = formData.get("receipt_path");
+  if (rawReceiptPath !== null && typeof rawReceiptPath !== "string") {
+    redirect(messageUrl("/dashboard/transactions", "Choose a valid receipt file."));
+  }
+  const receiptPath = typeof rawReceiptPath === "string" && rawReceiptPath ? rawReceiptPath : null;
+  const receiptName = receiptPath?.startsWith(`${user.id}/`) ? receiptPath.slice(user.id.length + 1) : "";
+  if (receiptPath && !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\.(jpg|png|webp|pdf)$/i.test(receiptName)) {
+    redirect(messageUrl("/dashboard/transactions", "Receipt path must belong to your account."));
+  }
   const id = formData.get("id");
   let previousReceiptPath: string | null = null;
   if (typeof id === "string" && id) {
@@ -121,12 +119,6 @@ export async function saveTransaction(formData: FormData) {
     if (error) redirect(messageUrl("/dashboard/transactions", `Could not load transaction: ${error.message}`));
     if (!existing) redirect(messageUrl("/dashboard/transactions", "That transaction was not found."));
     previousReceiptPath = existing.receipt_path;
-  }
-  let receiptPath: string | null = null;
-  try {
-    receiptPath = await getReceipt(supabase, user.id, formData);
-  } catch (error) {
-    redirect(messageUrl("/dashboard/transactions", error instanceof Error ? error.message : "Receipt upload failed."));
   }
   const values = {
     ...parsed.data,
@@ -232,13 +224,20 @@ export async function saveBill(formData: FormData) {
   const parsed = billSchema.safeParse({
     name: formData.get("name"),
     amount: formData.get("amount"),
+    category: formData.get("category"),
     due_date: formData.get("due_date"),
     recurrence: formData.get("recurrence"),
   });
   if (!parsed.success) redirect(messageUrl("/dashboard/bills", "Enter a name, valid due date, amount, and recurrence."));
   const { supabase, user } = await getUser();
   const id = formData.get("id");
-  const values = { ...parsed.data, user_id: user.id };
+  const [, anchorMonth, anchorDay] = parsed.data.due_date.split("-").map(Number);
+  const values = {
+    ...parsed.data,
+    anchor_day: anchorDay,
+    anchor_month: anchorMonth,
+    user_id: user.id,
+  };
   let saveError: string | null = null;
   if (typeof id === "string" && id) {
     const { data, error } = await supabase.from("bills").update(values)
@@ -256,29 +255,11 @@ export async function saveBill(formData: FormData) {
 
 export async function markBillPaid(formData: FormData) {
   const id = z.string().uuid().safeParse(formData.get("id"));
-  if (!id.success) redirect(messageUrl("/dashboard/bills", "Choose a valid bill."));
-  const { supabase, user } = await getUser();
-  const { data: bill, error: findError } = await supabase.from("bills")
-    .select("due_date,recurrence,last_paid_at").eq("id", id.data).eq("user_id", user.id).maybeSingle();
-  if (findError) redirect(messageUrl("/dashboard/bills", `Could not load bill: ${findError.message}`));
-  if (!bill) redirect(messageUrl("/dashboard/bills", "That bill was not found."));
-  const today = new Date();
-  const todayString = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}-${String(today.getDate()).padStart(2, "0")}`;
-  if (bill.last_paid_at?.slice(0, 10) === todayString) {
-    redirect(messageUrl("/dashboard/bills", "This bill was already marked paid today."));
-  }
-  let dueDate = bill.due_date;
-  if (bill.recurrence !== "once") {
-    do {
-      dueDate = nextDueDate(dueDate, bill.recurrence as Recurrence);
-    } while (dueDate <= todayString);
-  }
-  const { data: updated, error } = await supabase.from("bills").update({
-    due_date: dueDate,
-    last_paid_at: new Date().toISOString(),
-  }).eq("id", id.data).eq("user_id", user.id).select("id").maybeSingle();
+  const expectedDueDate = z.string().date().safeParse(formData.get("expected_due_date"));
+  if (!id.success || !expectedDueDate.success) redirect(messageUrl("/dashboard/bills", "Choose a valid bill and due date."));
+  const { supabase } = await getUser();
+  const { error } = await supabase.rpc("mark_bill_paid", { bill_id_input: id.data, expected_due_date: expectedDueDate.data });
   if (error) redirect(messageUrl("/dashboard/bills", `Could not mark bill paid: ${error.message}`));
-  if (!updated) redirect(messageUrl("/dashboard/bills", "That bill was not found."));
   revalidatePath("/dashboard");
   revalidatePath("/dashboard/bills");
   redirect(messageUrl("/dashboard/bills", "Bill marked as paid.", "success"));

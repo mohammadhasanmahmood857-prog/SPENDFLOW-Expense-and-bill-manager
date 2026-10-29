@@ -10,6 +10,7 @@ export type Transaction = {
   description: string;
   transaction_date: string;
   receipt_path: string | null;
+  bill_id: string | null;
   created_at: string;
 };
 
@@ -28,8 +29,11 @@ export type Bill = {
   user_id: string;
   name: string;
   amount: number;
+  category: string;
   due_date: string;
   recurrence: Recurrence;
+  anchor_day: number;
+  anchor_month: number;
   last_paid_at: string | null;
   created_at: string;
 };
@@ -45,7 +49,9 @@ export type Database = {
       };
       transactions: {
         Row: Transaction;
-        Insert: Omit<Transaction, "id" | "created_at"> & { id?: string; created_at?: string };
+        Insert: Omit<Transaction, "id" | "created_at" | "bill_id"> & {
+          id?: string; created_at?: string; bill_id?: string | null;
+        };
         Update: Partial<Omit<Transaction, "id" | "created_at">> & { id?: string; created_at?: string };
         Relationships: [];
       };
@@ -67,7 +73,12 @@ export type Database = {
       };
     };
     Views: { [_ in never]: never };
-    Functions: { [_ in never]: never };
+    Functions: {
+      mark_bill_paid: {
+        Args: { bill_id_input: string; expected_due_date: string };
+        Returns: undefined;
+      };
+    };
     Enums: { [_ in never]: never };
     CompositeTypes: { [_ in never]: never };
   };

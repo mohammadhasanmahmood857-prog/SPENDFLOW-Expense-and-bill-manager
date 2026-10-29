@@ -5,7 +5,9 @@ import { deleteBill, markBillPaid, saveBill } from "@/app/actions";
 import { Notice } from "@/components/notice";
 import { PageHeading } from "@/components/page-heading";
 import { PageLoading } from "@/components/page-loading";
-import { daysUntil, formatMoney } from "@/lib/finance";
+import { ConfirmActionForm } from "@/components/confirm-action-form";
+import { CATEGORIES, daysUntil, formatMoney } from "@/lib/finance";
+import { formatPakistanDate, formatPakistanTimestampDate, pakistanDateParts } from "@/lib/dates";
 import type { Recurrence } from "@/lib/database.types";
 import { createClient } from "@/lib/supabase/server";
 
@@ -38,8 +40,7 @@ async function BillsContent({ searchParams }: { searchParams: SearchParams }) {
   const unpaid = bills.filter((bill) => !(bill.recurrence === "once" && bill.last_paid_at));
   const overdue = unpaid.filter((bill) => daysUntil(bill.due_date) < 0);
   const upcoming = unpaid.filter((bill) => daysUntil(bill.due_date) >= 0);
-  const today = new Date();
-  const todayDate = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}-${String(today.getDate()).padStart(2, "0")}`;
+  const todayDate = pakistanDateParts().date;
   const recurrenceOptions = Object.entries(recurrenceLabels) as [Recurrence, string][];
   return (
     <div className="page-enter">
@@ -48,15 +49,16 @@ async function BillsContent({ searchParams }: { searchParams: SearchParams }) {
       <Notice message={params.error} />
       <Notice message={params.success} type="success" />
       <section className="mb-5 grid gap-3 sm:grid-cols-3">
-        <article className="panel p-5"><p className="text-sm font-medium text-[#65716d]">Bills to keep track of</p><p className="display mt-3 text-2xl">{bills.length}</p></article>
-        <article className={`panel p-5 ${overdue.length ? "border-[#f0d7d4] bg-[#fff9f8]" : ""}`}><p className="text-sm font-medium text-[#65716d]">Overdue</p><p className={`display mt-3 text-2xl ${overdue.length ? "text-[#a9433a]" : ""}`}>{overdue.length}</p></article>
-        <article className="panel p-5"><p className="text-sm font-medium text-[#65716d]">Due within 30 days</p><p className="display mt-3 text-2xl">{upcoming.filter((bill) => daysUntil(bill.due_date) <= 30).length}</p></article>
+        <article className="panel p-5"><p className="text-sm font-medium text-[var(--muted)]">Bills to keep track of</p><p className="display mt-3 text-2xl">{bills.length}</p></article>
+        <article className={`panel p-5 ${overdue.length ? "border-[var(--danger-border)] bg-[var(--danger-surface)]" : ""}`}><p className="text-sm font-medium text-[var(--muted)]">Overdue</p><p className={`display mt-3 text-2xl ${overdue.length ? "text-[var(--danger)]" : ""}`}>{overdue.length}</p></article>
+        <article className="panel p-5"><p className="text-sm font-medium text-[var(--muted)]">Due within 30 days</p><p className="display mt-3 text-2xl">{upcoming.filter((bill) => daysUntil(bill.due_date) <= 30).length}</p></article>
       </section>
       <section className="panel mb-5 p-4 sm:p-5" id="add-bill">
-        <div className="mb-4"><h2 className="text-sm font-bold">Add a bill</h2><p className="mt-1 text-xs text-[#788480]">Due dates are advanced when a recurring bill is marked as paid.</p></div>
-        <form action={saveBill} className="grid gap-3 sm:grid-cols-2 lg:grid-cols-[1.4fr_1fr_1fr_1fr_auto] lg:items-end">
+        <div className="mb-4"><h2 className="text-sm font-bold">Add a bill</h2><p className="mt-1 text-sm text-[var(--muted)]">Bill payments are recorded automatically when you mark them paid.</p></div>
+        <form action={saveBill} className="grid gap-3 sm:grid-cols-2 lg:grid-cols-[1.4fr_1fr_1fr_1fr_1fr_auto] lg:items-end">
           <label className="label">Bill name<input className="field" name="name" maxLength={100} placeholder="Internet, rent, electricity…" required /></label>
           <label className="label">Amount<input className="field" name="amount" type="number" step="0.01" min="0.01" placeholder="0.00" required /></label>
+          <label className="label">Category<select className="field" name="category" defaultValue="Home">{CATEGORIES.map((category) => <option key={category}>{category}</option>)}</select></label>
           <label className="label">Next due date<input className="field" name="due_date" type="date" defaultValue={todayDate} required /></label>
           <label className="label">Repeats<select className="field" name="recurrence" defaultValue="monthly">{recurrenceOptions.map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select></label>
           <button className="button" type="submit">Save bill</button>
@@ -64,22 +66,22 @@ async function BillsContent({ searchParams }: { searchParams: SearchParams }) {
       </section>
       {overdue.length > 0 && (
         <section className="mb-5">
-          <h2 className="mb-3 flex items-center gap-2 text-sm font-bold text-[#a9433a]"><CalendarClock size={16} />Needs attention <span className="badge badge-red">{overdue.length}</span></h2>
+          <h2 className="mb-3 flex items-center gap-2 text-sm font-bold text-[var(--danger)]"><CalendarClock size={16} />Needs attention <span className="badge badge-red">{overdue.length}</span></h2>
           <div className="grid gap-3 md:grid-cols-2">
-            {overdue.map((bill) => <BillCard key={bill.id} bill={bill} currency={currency} paidToday={bill.last_paid_at?.slice(0, 10) === todayDate} />)}
+            {overdue.map((bill) => <BillCard key={bill.id} bill={bill} currency={currency} paidToday={bill.last_paid_at ? formatPakistanTimestampDate(bill.last_paid_at) === todayDate : false} />)}
           </div>
         </section>
       )}
       <section>
-        <div className="mb-3 flex items-center justify-between"><h2 className="text-sm font-bold">Upcoming and paid</h2><span className="text-xs text-[#788480]">{upcoming.length} upcoming</span></div>
+        <div className="mb-3 flex items-center justify-between"><h2 className="text-sm font-bold">Upcoming and paid</h2><span className="text-xs text-[var(--muted)]">{upcoming.length} upcoming</span></div>
         {bills.length === 0 ? (
-          <div className="panel px-5 py-12 text-center"><p className="text-sm font-semibold">Your bills will have a home here.</p><p className="mt-2 text-sm text-[#65716d]">Add a bill above to keep its due date in sight.</p><a href="#add-bill" className="mt-4 inline-flex text-sm font-semibold underline underline-offset-2">Add your first bill</a></div>
+          <div className="panel px-5 py-12 text-center"><p className="text-sm font-semibold">Your bills will have a home here.</p><p className="mt-2 text-sm text-[var(--muted)]">Add a bill above to keep its due date in sight.</p><a href="#add-bill" className="mt-4 inline-flex text-sm font-semibold underline underline-offset-2">Add your first bill</a></div>
         ) : upcoming.length === 0 && overdue.length === 0 ? (
-          <div className="panel px-5 py-10 text-center text-sm text-[#788480]">All one-time bills are paid. You are all caught up.</div>
+          <div className="panel px-5 py-10 text-center text-sm text-[var(--muted)]">All one-time bills are paid. You are all caught up.</div>
         ) : (
           <div className="grid gap-3 md:grid-cols-2">
             {bills.filter((bill) => !overdue.some((item) => item.id === bill.id)).map((bill) => (
-              <BillCard key={bill.id} bill={bill} currency={currency} paidToday={bill.last_paid_at?.slice(0, 10) === todayDate} paid={bill.recurrence === "once" && Boolean(bill.last_paid_at)} />
+              <BillCard key={bill.id} bill={bill} currency={currency} paidToday={bill.last_paid_at ? formatPakistanTimestampDate(bill.last_paid_at) === todayDate : false} paid={bill.recurrence === "once" && Boolean(bill.last_paid_at)} />
             ))}
           </div>
         )}
@@ -91,16 +93,16 @@ async function BillsContent({ searchParams }: { searchParams: SearchParams }) {
 function BillCard({
   bill, currency, paidToday, paid = false,
 }: {
-  bill: { id: string; name: string; amount: number; due_date: string; recurrence: Recurrence; last_paid_at: string | null };
+  bill: { id: string; name: string; amount: number; category: string; due_date: string; recurrence: Recurrence; last_paid_at: string | null };
   currency: string; paidToday: boolean; paid?: boolean;
 }) {
   const remaining = daysUntil(bill.due_date);
   return (
-    <article className={`panel p-4 sm:p-5 ${remaining < 0 && !paid ? "border-[#f0d7d4]" : ""}`}>
+    <article className={`panel p-4 sm:p-5 ${remaining < 0 && !paid ? "border-[var(--danger-border)]" : ""}`}>
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
           <h3 className="truncate text-sm font-bold">{bill.name}</h3>
-          <p className="mt-1 text-xs text-[#788480]">{recurrenceLabels[bill.recurrence]} · Due {new Date(`${bill.due_date}T00:00:00`).toLocaleDateString("en", { month: "short", day: "numeric", year: "numeric" })}</p>
+          <p className="mt-1 text-xs text-[var(--muted)]">{recurrenceLabels[bill.recurrence]} · Due {formatPakistanDate(bill.due_date)}</p>
         </div>
         <p className="whitespace-nowrap text-sm font-bold">{formatMoney(Number(bill.amount), currency)}</p>
       </div>
@@ -111,19 +113,20 @@ function BillCard({
               : remaining === 0 ? <span className="badge badge-yellow">Due today</span>
                 : <span className="badge badge-blue">Due in {remaining} days</span>}
         <div className="flex gap-2">
-          {!paid && !paidToday && <form action={markBillPaid}><input type="hidden" name="id" value={bill.id} /><button className="button button-small" type="submit">Mark paid</button></form>}
+          {!paid && !paidToday && <form action={markBillPaid}><input type="hidden" name="id" value={bill.id} /><input type="hidden" name="expected_due_date" value={bill.due_date} /><button className="button button-small" type="submit">Mark paid</button></form>}
           <details className="relative">
             <summary className="button button-small button-secondary cursor-pointer list-none">Edit</summary>
-            <div className="absolute right-0 z-20 mt-2 w-[min(85vw,340px)] rounded-xl border border-[#e5eae7] bg-white p-4 shadow-xl">
+            <div className="absolute right-0 z-20 mt-2 w-[min(85vw,340px)] rounded-xl border border-[var(--line)] bg-white p-4 shadow-xl">
               <form action={saveBill} className="grid gap-3">
                 <input type="hidden" name="id" value={bill.id} />
                 <label className="label">Name<input className="field" name="name" defaultValue={bill.name} maxLength={100} required /></label>
                 <label className="label">Amount<input className="field" name="amount" type="number" min="0.01" step="0.01" defaultValue={bill.amount} required /></label>
+                <label className="label">Category<select className="field" name="category" defaultValue={bill.category}>{CATEGORIES.map((category) => <option key={category}>{category}</option>)}</select></label>
                 <label className="label">Due date<input className="field" name="due_date" type="date" defaultValue={bill.due_date} required /></label>
                 <label className="label">Repeats<select className="field" name="recurrence" defaultValue={bill.recurrence}>{Object.entries(recurrenceLabels).map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select></label>
                 <button className="button" type="submit">Save changes</button>
               </form>
-              <form action={deleteBill} className="mt-2"><input type="hidden" name="id" value={bill.id} /><button className="button button-danger w-full" type="submit">Delete bill</button></form>
+              <ConfirmActionForm action={deleteBill} message={`Delete "${bill.name}"? This will keep any transaction already recorded for it.`} className="mt-2"><input type="hidden" name="id" value={bill.id} /><button className="button button-danger w-full" type="submit">Delete bill</button></ConfirmActionForm>
             </div>
           </details>
         </div>

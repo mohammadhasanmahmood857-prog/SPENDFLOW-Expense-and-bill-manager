@@ -1,4 +1,5 @@
 import type { Recurrence } from "@/lib/database.types";
+import { pakistanDateParts } from "@/lib/dates";
 
 export const CATEGORIES = [
   "Food",
@@ -27,28 +28,32 @@ export function monthBounds(year: number, month: number) {
   return { start, end };
 }
 
-export function nextDueDate(date: string, recurrence: Recurrence) {
+export function nextDueDate(
+  date: string,
+  recurrence: Recurrence,
+  anchorDay?: number,
+  anchorMonth?: number,
+) {
   const [year, month, day] = date.split("-").map(Number);
   const due = new Date(Date.UTC(year, month - 1, day));
   if (recurrence === "weekly") due.setUTCDate(due.getUTCDate() + 7);
   if (recurrence === "monthly") {
-    const targetMonth = due.getUTCMonth() + 1;
-    const lastDay = new Date(Date.UTC(due.getUTCFullYear(), targetMonth + 1, 0)).getUTCDate();
-    due.setUTCDate(Math.min(day, lastDay));
-    due.setUTCMonth(targetMonth);
+    const target = new Date(Date.UTC(year, month, 1));
+    const lastDay = new Date(Date.UTC(target.getUTCFullYear(), target.getUTCMonth() + 1, 0)).getUTCDate();
+    due.setUTCFullYear(target.getUTCFullYear(), target.getUTCMonth(), Math.min(anchorDay || day, lastDay));
   }
   if (recurrence === "yearly") {
-    const targetYear = due.getUTCFullYear() + 1;
-    const lastDay = new Date(Date.UTC(targetYear, due.getUTCMonth() + 1, 0)).getUTCDate();
-    due.setUTCDate(Math.min(day, lastDay));
-    due.setUTCFullYear(targetYear);
+    const targetYear = year + 1;
+    const targetMonth = (anchorMonth || month) - 1;
+    const lastDay = new Date(Date.UTC(targetYear, targetMonth + 1, 0)).getUTCDate();
+    due.setUTCFullYear(targetYear, targetMonth, Math.min(anchorDay || day, lastDay));
   }
   return due.toISOString().slice(0, 10);
 }
 
 export function daysUntil(date: string) {
-  const today = new Date();
-  const localToday = new Date(today.getFullYear(), today.getMonth(), today.getDate());
-  const target = new Date(`${date}T00:00:00`);
-  return Math.round((target.getTime() - localToday.getTime()) / 86_400_000);
+  const { year, month, day } = pakistanDateParts();
+  const today = Date.UTC(year, month - 1, day);
+  const [targetYear, targetMonth, targetDay] = date.split("-").map(Number);
+  return Math.round((Date.UTC(targetYear, targetMonth - 1, targetDay) - today) / 86_400_000);
 }
