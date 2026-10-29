@@ -1,0 +1,162 @@
+import Link from "next/link";
+import { Suspense } from "react";
+import { connection } from "next/server";
+import { ArrowDownToLine, Plus, Search, SlidersHorizontal } from "lucide-react";
+import { deleteTransaction, saveTransaction } from "@/app/actions";
+import { Notice } from "@/components/notice";
+import { PageHeading } from "@/components/page-heading";
+import { PageLoading } from "@/components/page-loading";
+import { CATEGORIES, formatMoney } from "@/lib/finance";
+import { createClient } from "@/lib/supabase/server";
+
+type SearchParams = Promise<{
+  q?: string; type?: string; category?: string; from?: string; to?: string;
+  sort?: string; page?: string; error?: string; success?: string;
+}>;
+
+function validDate(value?: string) {
+  if (!value || !/^\d{4}-\d{2}-\d{2}$/.test(value)) return undefined;
+  const date = new Date(`${value}T00:00:00.000Z`);
+  return Number.isNaN(date.valueOf()) || date.toISOString().slice(0, 10) !== value ? undefined : value;
+}
+
+export default function TransactionsPage({ searchParams }: { searchParams: SearchParams }) {
+  return <Suspense fallback={<PageLoading />}><TransactionsContent searchParams={searchParams} /></Suspense>;
+}
+
+async function TransactionsContent({ searchParams }: { searchParams: SearchParams }) {
+  await connection();
+  const params = await searchParams;
+  const supabase = await createClient();
+  const { data: { user }, error: authError } = await supabase.auth.getUser();
+  if (authError || !user) throw new Error("Your session expired. Please sign in again.");
+  const { data: profile, error: profileError } = await supabase.from("profiles").select("currency").eq("id", user.id).maybeSingle();
+  if (profileError) throw new Error(`Could not load preferences: ${profileError.message}`);
+  const type = params.type === "income" || params.type === "expense" ? params.type : undefined;
+  const category = CATEGORIES.includes(params.category as typeof CATEGORIES[number]) ? params.category : undefined;
+  const from = validDate(params.from);
+  const to = validDate(params.to);
+  const search = (params.q || "").slice(0, 100);
+  const safeSearch = search.replace(/[^\p{L}\p{N}\s-]/gu, " ").replace(/\s+/g, " ").trim();
+  const pageSize = 25;
+  let page = /^\d+$/.test(params.page || "") ? Math.min(100_000, Math.max(1, Number(params.page))) : 1;
+  let query = supabase.from("transactions").select("*", { count: "exact" }).eq("user_id", user.id);
+  if (type) query = query.eq("type", type);
+  if (category) query = query.eq("category", category);
+  if (from) query = query.gte("transaction_date", from);
+  if (to) query = query.lte("transaction_date", to);
+  if (safeSearch) query = query.or(`description.ilike.%${safeSearch}%,category.ilike.%${safeSearch}%`);
+  query = params.sort === "amount-asc"
+    ? query.order("amount", { ascending: true })
+    : params.sort === "amount-desc"
+      ? query.order("amount", { ascending: false })
+      : query.order("transaction_date", { ascending: params.sort === "date-asc" });
+  const firstPage = await query.range((page - 1) * pageSize, page * pageSize - 1);
+  if (firstPage.error) throw new Error(`Could not load transactions: ${firstPage.error.message}`);
+  const count = firstPage.count;
+  let data = firstPage.data;
+  const totalPages = Math.max(1, Math.ceil((count || 0) / pageSize));
+  if (page > totalPages && (count || 0) > 0) {
+    page = totalPages;
+    const result = await query.range((page - 1) * pageSize, page * pageSize - 1);
+    if (result.error) throw new Error(`Could not load transactions: ${result.error.message}`);
+    data = result.data;
+  }
+  const transactions = data || [];
+  const signedReceipts = await Promise.all(transactions.map(async (item) => {
+    if (!item.receipt_path) return [item.id, null] as const;
+    const { data: signed, error: signedError } = await supabase.storage.from("receipts")
+      .createSignedUrl(item.receipt_path, 300);
+    if (signedError) {
+      console.error(`Could not create receipt link for ${item.id}:`, signedError.message);
+      return [item.id, null] as const;
+    }
+    return [item.id, signed.signedUrl] as const;
+  }));
+  const receiptUrls = new Map(signedReceipts);
+  const currency = profile?.currency || "PKR";
+  const defaultDate = new Date().toISOString().slice(0, 10);
+  const pageQuery = (nextPage: number) => {
+    const queryParams = new URLSearchParams();
+    for (const [key, value] of Object.entries(params)) {
+      if (value && ["q", "type", "category", "from", "to", "sort"].includes(key)) queryParams.set(key, value);
+    }
+    queryParams.set("page", String(nextPage));
+    return `/dashboard/transactions?${queryParams.toString()}`;
+  };
+  return (
+    <div className="page-enter">
+      <PageHeading title="Transactions" description="Everyday income and spending, all in one place."
+        action={<a href="/api/transactions/export" className="button button-secondary"><ArrowDownToLine size={15} />Export CSV</a>} />
+      <Notice message={params.error} />
+      <Notice message={params.success} type="success" />
+      <details className="panel mb-5 group">
+        <summary className="flex cursor-pointer list-none items-center justify-between p-4 [&::-webkit-details-marker]:hidden sm:px-5">
+          <span className="flex items-center gap-3"><Plus size={17} className="text-[#35403c]" /><span><b className="block text-sm">Add a transaction</b><span className="mt-1 block text-xs text-[#65716d]">Record income or an expense</span></span></span>
+          <span className="button button-small button-primary-blue group-open:bg-[#f3f4f2] group-open:text-[#172321]">New entry</span>
+        </summary>
+        <form action={saveTransaction} encType="multipart/form-data" className="grid gap-4 border-t border-[#edf0ee] p-4 sm:grid-cols-2 sm:p-5 lg:grid-cols-3">
+          <label className="label">Amount<input className="field" name="amount" type="number" step="0.01" min="0.01" placeholder="0.00" required /></label>
+          <label className="label">Type<select className="field" name="type" defaultValue="expense"><option value="expense">Expense</option><option value="income">Income</option></select></label>
+          <label className="label">Category<select className="field" name="category" defaultValue="Food">{CATEGORIES.map((item) => <option key={item}>{item}</option>)}</select></label>
+          <label className="label">Date<input className="field" name="transaction_date" type="date" defaultValue={defaultDate} required /></label>
+          <label className="label sm:col-span-2">Description<input className="field" name="description" maxLength={160} placeholder="What was this for?" /></label>
+          <label className="label lg:col-span-2">Receipt <span className="text-xs font-normal text-[#65716d]">Optional · image or PDF, up to 5 MB</span><input className="field py-2" name="receipt" type="file" accept="image/jpeg,image/png,image/webp,application/pdf" /></label>
+          <div className="flex items-end"><button className="button w-full" type="submit">Save transaction</button></div>
+        </form>
+      </details>
+      <form className="panel mb-4 grid gap-3 p-4 sm:grid-cols-2 lg:grid-cols-[1.4fr_repeat(5,1fr)_auto] lg:items-end" method="get">
+        <label className="label">Search<input className="field" name="q" defaultValue={params.q} placeholder="Search descriptions" /></label>
+        <label className="label">Type<select className="field" name="type" defaultValue={type || ""}><option value="">All types</option><option value="expense">Expense</option><option value="income">Income</option></select></label>
+        <label className="label">Category<select className="field" name="category" defaultValue={category || ""}><option value="">All categories</option>{CATEGORIES.map((item) => <option key={item}>{item}</option>)}</select></label>
+        <label className="label">From<input className="field" type="date" name="from" defaultValue={from} /></label>
+        <label className="label">To<input className="field" type="date" name="to" defaultValue={to} /></label>
+        <label className="label">Sort<select className="field" name="sort" defaultValue={params.sort || "date-desc"}><option value="date-desc">Newest first</option><option value="date-asc">Oldest first</option><option value="amount-desc">Highest amount</option><option value="amount-asc">Lowest amount</option></select></label>
+        <button className="button button-secondary w-full" type="submit"><SlidersHorizontal size={14} />Filter</button>
+      </form>
+      <section className="panel overflow-hidden">
+        <div className="flex items-center justify-between px-5 py-4"><div><h2 className="text-sm font-bold">Transaction history</h2><p className="mt-1 text-xs text-[#788480]">{count || 0} {(count || 0) === 1 ? "record" : "records"} · page {page} of {totalPages}</p></div><Search size={16} className="text-[#788480]" /></div>
+        {transactions.length === 0 ? (
+          <div className="border-t border-[#edf0ee] px-5 py-12 text-center"><p className="text-sm font-semibold">{data?.length ? "No transactions match these filters." : "Your transaction history starts here."}</p><p className="mt-2 text-sm text-[#65716d]">{data?.length ? "Try changing the search or filters." : "Add your first income or expense above."}</p></div>
+        ) : (
+          <div className="table-wrap">
+            <table className="data-table min-w-[760px]">
+              <thead><tr><th>Transaction</th><th>Category</th><th>Date</th><th>Receipt</th><th className="text-right">Amount</th><th className="text-right">Manage</th></tr></thead>
+              <tbody>{transactions.map((item) => (
+                <tr key={item.id}>
+                  <td><span className="block font-semibold">{item.description || item.category}</span><span className="mt-1 block text-xs capitalize text-[#65716d]">{item.type}</span></td>
+                  <td><span className="badge badge-blue">{item.category}</span></td>
+                  <td className="whitespace-nowrap text-[#35403c]">{new Date(`${item.transaction_date}T00:00:00`).toLocaleDateString("en", { month: "short", day: "numeric", year: "numeric" })}</td>
+                  <td>{receiptUrls.get(item.id) ? <a href={receiptUrls.get(item.id)!} target="_blank" rel="noreferrer" className="text-sm font-medium text-[#35403c] underline underline-offset-2">View receipt</a> : <span className="text-sm text-[#65716d]">—</span>}</td>
+                  <td className="whitespace-nowrap text-right font-medium">{item.type === "income" ? "+" : "−"}{formatMoney(Number(item.amount), currency)}</td>
+                  <td className="text-right">
+                    <details className="relative inline-block text-left">
+                      <summary className="button button-small button-secondary cursor-pointer list-none">Edit</summary>
+                      <div className="absolute right-0 z-20 mt-2 w-[min(85vw,360px)] rounded-xl border border-[#e5eae7] bg-white p-4 shadow-xl">
+                        <form action={saveTransaction} className="grid gap-3">
+                          <input type="hidden" name="id" value={item.id} />
+                          <label className="label">Amount<input className="field" name="amount" type="number" min="0.01" step="0.01" defaultValue={item.amount} required /></label>
+                          <label className="label">Type<select className="field" name="type" defaultValue={item.type}><option value="expense">Expense</option><option value="income">Income</option></select></label>
+                          <label className="label">Category<select className="field" name="category" defaultValue={item.category}>{CATEGORIES.map((value) => <option key={value}>{value}</option>)}</select></label>
+                          <label className="label">Date<input className="field" name="transaction_date" type="date" defaultValue={item.transaction_date} required /></label>
+                          <label className="label">Description<input className="field" name="description" maxLength={160} defaultValue={item.description} /></label>
+                          <button className="button w-full" type="submit">Save changes</button>
+                        </form>
+                        <form action={deleteTransaction} className="mt-2"><input type="hidden" name="id" value={item.id} /><button className="button button-danger w-full" type="submit">Delete transaction</button></form>
+                      </div>
+                    </details>
+                  </td>
+                </tr>
+              ))}</tbody>
+            </table>
+          </div>
+        )}
+        {totalPages > 1 && <div className="flex items-center justify-between border-t border-[#edf0ee] px-5 py-4">
+          <Link aria-disabled={page <= 1} className={`button button-secondary button-small ${page <= 1 ? "pointer-events-none opacity-50" : ""}`} href={pageQuery(Math.max(1, page - 1))}>Previous</Link>
+          <span className="text-xs text-[#788480]">Page {page} of {totalPages}</span>
+          <Link aria-disabled={page >= totalPages} className={`button button-secondary button-small ${page >= totalPages ? "pointer-events-none opacity-50" : ""}`} href={pageQuery(Math.min(totalPages, page + 1))}>Next</Link>
+        </div>}
+      </section>
+    </div>
+  );
+}
