@@ -40,6 +40,7 @@ create unique index if not exists transactions_bill_date_unique
   on public.transactions (bill_id, transaction_date);
 
 drop function if exists public.mark_bill_paid(uuid, date);
+drop function if exists public.mark_bill_paid(uuid);
 
 create function public.mark_bill_paid(bill_id_input uuid, expected_due_date date)
 returns void
