@@ -1,9 +1,23 @@
 import { redirect } from "next/navigation";
+import { connection } from "next/server";
+import { Suspense, type ReactNode } from "react";
 import { Sidebar } from "@/components/sidebar";
+import { PageLoading } from "@/components/page-loading";
 import { getSupabaseConfig } from "@/lib/supabase/config";
 import { createClient } from "@/lib/supabase/server";
 
-export default async function DashboardLayout({ children }: LayoutProps<"/dashboard">) {
+export const instant = false;
+
+export default function DashboardLayout({ children }: { children: ReactNode }) {
+  return (
+    <Suspense fallback={<PageLoading />}>
+      <DashboardSession>{children}</DashboardSession>
+    </Suspense>
+  );
+}
+
+async function DashboardSession({ children }: { children: ReactNode }) {
+  await connection();
   if (!getSupabaseConfig()) {
     return (
       <main className="grid min-h-screen place-items-center p-5">
@@ -24,7 +38,7 @@ export default async function DashboardLayout({ children }: LayoutProps<"/dashbo
     .select("display_name,currency").eq("id", user.id).maybeSingle();
   if (profileError) throw new Error(`Could not load profile: ${profileError.message}`);
   return (
-    <div className="min-h-screen">
+    <div className="dashboard-shell min-h-screen">
       <Sidebar name={profile?.display_name || ""} email={user.email || ""} />
       <main className="min-h-screen lg:pl-[248px]">
         <div className="mx-auto max-w-[1400px] px-4 pb-14 pt-[72px] sm:px-7 lg:px-10 lg:pt-10">
