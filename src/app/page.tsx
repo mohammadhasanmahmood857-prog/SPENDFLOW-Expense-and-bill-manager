@@ -39,7 +39,7 @@ export default function Home() {
         <div className="relative mx-auto w-full max-w-[520px]">
           <div className="absolute -right-7 -top-7 size-32 rounded-full bg-[#f4c84a]/45 blur-2xl" />
           <div className="absolute -bottom-12 -left-7 size-36 rounded-full bg-[#265be8]/10 blur-2xl" />
-          <div className="panel relative overflow-hidden p-5 shadow-[0_24px_70px_-45px_rgba(24,44,37,.32)] sm:p-7">
+          <div className="panel relative overflow-hidden p-5 sm:p-7">
             <div className="flex items-center justify-between border-b border-[#edf0ee] pb-5">
               <div className="flex items-center gap-3"><Brand compact /><span><b className="block text-sm">Your money, in focus</b><span className="text-xs text-[#788480]">A simpler daily picture</span></span></div>
               <span className="rounded-full bg-[#edf2ff] px-3 py-1.5 text-[11px] font-semibold text-[#265be8]">Overview</span>
@@ -80,7 +80,6 @@ export default function Home() {
       <section className="border-t border-[#e5eae7] bg-white">
         <div className="mx-auto max-w-[1240px] px-5 py-14 sm:px-8 md:py-16">
           <div className="mb-8 max-w-[550px]">
-            <p className="eyebrow">The useful essentials</p>
             <h2 className="display mt-3 text-3xl sm:text-[40px]">A steadier way to stay on top of it.</h2>
           </div>
           <div className="grid gap-7 md:grid-cols-3">

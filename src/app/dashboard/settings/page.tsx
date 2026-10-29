@@ -42,14 +42,14 @@ async function SettingsContent({ searchParams }: { searchParams: SearchParams })
       <Notice message={params.success} type="success" />
       <section className="panel max-w-[760px] p-5 sm:p-7">
         <h2 className="text-sm font-bold">Profile and preferences</h2>
-        <p className="mt-1 text-sm leading-5 text-[#65716d]">Your financial records remain private to this account.</p>
+        <p className="mt-1 text-sm leading-5 text-[var(--muted)]">Your financial records remain private to this account.</p>
         <form action={saveSettings} className="mt-6 grid max-w-[520px] gap-5">
           <label className="label">Display name<input className="field" name="display_name" defaultValue={displayName} maxLength={80} required /></label>
           <label className="label">Display currency<select className="field" name="currency" defaultValue={currency}>{options.map(([code, label]) => <option key={code} value={code}>{label}</option>)}</select></label>
-          <div className="rounded-xl bg-[#f7f8f6] p-4">
+          <div className="rounded-xl bg-[var(--surface-muted)] p-4">
             <p className="text-xs font-semibold">Signed in as</p>
-            <p className="mt-1 text-sm text-[#65716d]">{user.email}</p>
-            <p className="mt-3 text-sm leading-5 text-[#65716d]">Currency changes how amounts are displayed; existing transaction amounts are not converted.</p>
+            <p className="mt-1 text-sm text-[var(--muted)]">{user.email}</p>
+            <p className="mt-3 text-sm leading-5 text-[var(--muted)]">Currency changes how amounts are displayed; existing transaction amounts are not converted.</p>
           </div>
           <button className="button w-fit" type="submit">Save settings</button>
         </form>

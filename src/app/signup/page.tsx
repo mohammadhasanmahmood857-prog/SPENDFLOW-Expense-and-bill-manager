@@ -6,8 +6,9 @@ import { Brand } from "@/components/brand";
 import { Notice } from "@/components/notice";
 import { Button } from "@/components/ui/button";
 import { getSupabaseConfig } from "@/lib/supabase/config";
+import { safeNextPath } from "@/lib/auth";
 
-export default function SignupPage({ searchParams }: { searchParams: Promise<{ error?: string }> }) {
+export default function SignupPage({ searchParams }: { searchParams: Promise<{ error?: string; next?: string }> }) {
   return (
     <Suspense fallback={<main className="grid min-h-screen place-items-center text-sm text-[#788480]">Loading your sign-up form…</main>}>
       <SignupContent searchParams={searchParams} />
@@ -15,20 +16,20 @@ export default function SignupPage({ searchParams }: { searchParams: Promise<{ e
   );
 }
 
-async function SignupContent({ searchParams }: { searchParams: Promise<{ error?: string }> }) {
+async function SignupContent({ searchParams }: { searchParams: Promise<{ error?: string; next?: string }> }) {
   const params = await searchParams;
+  const next = safeNextPath(params.next);
   if (getSupabaseConfig()) {
     const { createClient } = await import("@/lib/supabase/server");
     const supabase = await createClient();
     const { data: { user } } = await supabase.auth.getUser();
-    if (user) redirect("/dashboard");
+    if (user) redirect(next);
   }
   return (
     <main className="grid min-h-screen bg-white md:grid-cols-[minmax(320px, .85fr)_1.15fr]">
       <section className="flex flex-col justify-between bg-[#172321] p-7 text-white sm:p-10 md:p-12">
         <Link href="/" aria-label="SpendFlow home"><Brand /></Link>
         <div className="my-12 max-w-[460px]">
-          <p className="eyebrow text-[#9cafaa]">Start with what matters</p>
           <h1 className="display mt-5 text-4xl leading-tight sm:text-5xl">Your money. Your pace.</h1>
           <p className="mt-5 max-w-[370px] text-sm leading-6 text-[#b8c5c0]">No perfect plan required. Just a clear place to begin.</p>
         </div>
@@ -43,12 +44,13 @@ async function SignupContent({ searchParams }: { searchParams: Promise<{ error?:
             {!getSupabaseConfig() && <Notice message="Authentication is not connected yet. Add your Supabase URL and anon key to .env.local, then restart the app." />}
           </div>
           <form action={signUp} className="grid gap-4">
+            <input type="hidden" name="next" value={next} />
             <label className="label">Your name<input className="field" name="display_name" type="text" autoComplete="name" maxLength={80} required /></label>
             <label className="label">Email address<input className="field" name="email" type="email" autoComplete="email" required /></label>
             <label className="label">Password<span className="text-[11px] font-normal text-[#788480]">At least 8 characters</span><input className="field" name="password" type="password" autoComplete="new-password" minLength={8} required /></label>
             <Button type="submit" className="mt-2 w-full" disabled={!getSupabaseConfig()}>Create account</Button>
           </form>
-          <p className="mt-6 text-center text-sm text-[#788480]">Already have an account? <Link href="/login" className="font-semibold text-[#265be8] hover:underline">Log in</Link></p>
+          <p className="mt-6 text-center text-sm text-[#788480]">Already have an account? <Link href={{ pathname: "/login", query: { next } }} className="font-semibold text-[#265be8] hover:underline">Log in</Link></p>
         </div>
       </section>
     </main>

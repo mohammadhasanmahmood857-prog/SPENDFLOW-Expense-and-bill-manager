@@ -22,9 +22,8 @@ async function DashboardSession({ children }: { children: ReactNode }) {
     return (
       <main className="grid min-h-screen place-items-center p-5">
         <section className="panel w-full max-w-lg p-7">
-          <p className="eyebrow mb-3">One setup step</p>
           <h1 className="display text-3xl">Connect your private workspace.</h1>
-          <p className="mt-3 text-sm leading-6 text-[#65716d]">
+          <p className="mt-3 text-sm leading-6 text-[var(--muted)]">
             Add your Supabase project URL and anon key to <code>.env.local</code>, then run the SQL migration in <code>supabase/migrations</code>.
           </p>
         </section>
