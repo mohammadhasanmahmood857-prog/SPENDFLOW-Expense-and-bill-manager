@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { Suspense } from "react";
+import { connection } from "next/server";
 import { signIn } from "@/app/actions";
 import { Brand } from "@/components/brand";
 import { Notice } from "@/components/notice";
@@ -19,6 +20,7 @@ export default function LoginPage({ searchParams }: { searchParams: Promise<{ er
 async function LoginContent({
   searchParams,
 }: { searchParams: Promise<{ error?: string; notice?: string; next?: string }> }) {
+  await connection();
   const params = await searchParams;
   const next = safeNextPath(params.next);
   if (getSupabaseConfig()) {

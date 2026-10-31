@@ -33,6 +33,21 @@ function messageUrl(path: string, message: string, type = "error") {
   return `${path}?${type}=${encodeURIComponent(message)}`;
 }
 
+function formatAuthError(error: { message?: string } | null, fallback: string) {
+  const message = error?.message?.trim() || "";
+  const lower = message.toLowerCase();
+
+  if (lower.includes("rate limit") && lower.includes("email")) {
+    return "Too many email attempts. Please wait a moment and try again.";
+  }
+
+  if (lower.includes("rate limit")) {
+    return "Too many attempts. Please wait a moment and try again.";
+  }
+
+  return message || fallback;
+}
+
 async function getUser() {
   const supabase = await createClient();
   const { data: { user }, error } = await supabase.auth.getUser();
@@ -49,7 +64,7 @@ export async function signIn(formData: FormData) {
   }
   const supabase = await createClient();
   const { error } = await supabase.auth.signInWithPassword({ email: email.data, password: password.data });
-  if (error) redirect(`${messageUrl("/login", error.message)}&next=${encodeURIComponent(next)}`);
+  if (error) redirect(`${messageUrl("/login", formatAuthError(error, "Check your email and password."))}&next=${encodeURIComponent(next)}`);
   revalidatePath("/", "layout");
   redirect(next);
 }
@@ -74,7 +89,7 @@ export async function signUp(formData: FormData) {
     password: password.data,
     options: { data: { display_name: name.data }, emailRedirectTo: emailRedirectTo.toString() },
   });
-  if (error) redirect(`${messageUrl("/signup", error.message)}&next=${encodeURIComponent(next)}`);
+  if (error) redirect(`${messageUrl("/signup", formatAuthError(error, "We could not create your account right now."))}&next=${encodeURIComponent(next)}`);
   if (!data.session) {
     redirect(`${messageUrl("/login", "Check your inbox to confirm your email, then sign in.", "notice")}&next=${encodeURIComponent(next)}`);
   }
