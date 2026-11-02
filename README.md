@@ -7,7 +7,7 @@ SpendFlow is a personal finance app built with Next.js App Router, TypeScript, T
 - Email/password registration, login, logout, and protected `/dashboard` routes.
 - Private transaction CRUD, category/type/date filters, sorting, search, optional private receipt uploads, and CSV export.
 - Monthly category budgets calculated from stored expenses, with 80% warnings and over-budget states.
-- One-time and recurring bill tracking. Marking a bill paid records an expense dated on the bill's scheduled due date (not the day you click Pay) exactly once, then advances recurring due dates while preserving the original calendar anchor.
+- One-time and recurring bill tracking. Marking a bill paid records an expense dated on the bill's scheduled due date (not the day you click Pay) exactly once, then advances recurring due dates while preserving the original calendar anchor. Paying an overdue recurring bill records one expense for every missed due date up to today, then moves the bill to its next future due date.
 - Dashboard totals, charts, recent activity, bill reminders, and insights calculated from the signed-in user's database records. New accounts see empty states instead of sample financial data.
 - Profile display name and currency preferences. Changing currency affects formatting only; it does not convert saved amounts.
 

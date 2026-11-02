@@ -113,7 +113,9 @@ function BillCard({
               : remaining === 0 ? <span className="badge badge-yellow">Due today</span>
                 : <span className="badge badge-blue">Due in {remaining} days</span>}
         <div className="flex gap-2">
-          {!paid && !paidToday && <form action={markBillPaid}><input type="hidden" name="id" value={bill.id} /><input type="hidden" name="expected_due_date" value={bill.due_date} /><button className="button button-small" type="submit">Mark paid</button></form>}
+          {!paid && !paidToday && (remaining < 0 && bill.recurrence !== "once"
+            ? <ConfirmActionForm action={markBillPaid} message={`Record a payment for every missed due date of "${bill.name}" up to today?`}><input type="hidden" name="id" value={bill.id} /><input type="hidden" name="expected_due_date" value={bill.due_date} /><button className="button button-small" type="submit">Mark paid</button></ConfirmActionForm>
+            : <form action={markBillPaid}><input type="hidden" name="id" value={bill.id} /><input type="hidden" name="expected_due_date" value={bill.due_date} /><button className="button button-small" type="submit">Mark paid</button></form>)}
           <details className="relative">
             <summary className="button button-small button-secondary cursor-pointer list-none">Edit</summary>
             <div className="absolute right-0 z-20 mt-2 w-[min(85vw,340px)] rounded-xl border border-[var(--line)] bg-white p-4 shadow-xl">
