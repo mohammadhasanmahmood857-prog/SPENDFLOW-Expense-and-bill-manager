@@ -34,15 +34,18 @@ function messageUrl(path: string, message: string, type = "error") {
   return `${path}?${type}=${encodeURIComponent(message)}`;
 }
 
-function formatAuthError(error: { message?: string } | null, fallback: string) {
+function formatAuthError(error: { code?: string; message?: string } | null, fallback: string) {
   const message = error?.message?.trim() || "";
   const lower = message.toLowerCase();
 
-  if (lower.includes("rate limit") && lower.includes("email")) {
+  if (
+    error?.code === "over_email_send_rate_limit"
+    || (lower.includes("rate limit") && lower.includes("email"))
+  ) {
     return "Too many email attempts. Please wait a moment and try again.";
   }
 
-  if (lower.includes("rate limit")) {
+  if (error?.code === "over_request_rate_limit" || lower.includes("rate limit")) {
     return "Too many attempts. Please wait a moment and try again.";
   }
 
@@ -66,23 +69,31 @@ async function getUser() {
   return { supabase, user };
 }
 
-export async function signIn(formData: FormData) {
+export type SignInState = {
+  message: string;
+  unverified: boolean;
+};
+
+export async function signIn(_previousState: SignInState, formData: FormData): Promise<SignInState> {
   const email = z.string().email().safeParse(formData.get("email"));
   const password = z.string().min(1).safeParse(formData.get("password"));
   const next = safeNextPath(formData.get("next"));
   if (!email.success || !password.success) {
-    redirect(`${messageUrl("/login", "Enter a valid email and password.")}&next=${encodeURIComponent(next)}`);
+    return { message: "Enter a valid email and password.", unverified: false };
   }
   const supabase = await createClient();
   const { error } = await supabase.auth.signInWithPassword({ email: email.data, password: password.data });
   if (error) {
     const unverified = error.code === "email_not_confirmed"
       || error.message.toLowerCase().includes("email not confirmed");
-    const loginUrl = `${messageUrl(
-      "/login",
-      unverified ? "Please verify your email before logging in." : formatAuthError(error, "Check your email and password."),
-    )}&next=${encodeURIComponent(next)}`;
-    redirect(unverified ? `${loginUrl}&unverified=1` : loginUrl);
+    return {
+      message: unverified
+        ? "Please verify your email before logging in."
+        : error.code === "invalid_credentials"
+          ? "Incorrect email or password."
+          : formatAuthError(error, "Check your email and password."),
+      unverified,
+    };
   }
   revalidatePath("/", "layout");
   redirect(next);
@@ -128,17 +139,23 @@ export async function resendVerificationEmail(
     return { status: "error", message: "Email verification is not connected right now." };
   }
 
-  const next = safeNextPath(formData.get("next"));
-  const supabase = await createClient();
-  const emailRedirectTo = await getConfirmationRedirect(next);
-  const { error } = await supabase.auth.resend({
-    type: "signup",
-    email: email.data,
-    options: { emailRedirectTo },
-  });
-  if (error) {
-    return { status: "error", message: formatAuthError(error, "We could not resend the confirmation email.") };
+  try {
+    const next = safeNextPath(formData.get("next"));
+    const supabase = await createClient();
+    const emailRedirectTo = await getConfirmationRedirect(next);
+    const { error } = await supabase.auth.resend({
+      type: "signup",
+      email: email.data,
+      options: { emailRedirectTo },
+    });
+    if (error) {
+      return { status: "error", message: formatAuthError(error, "We could not resend the confirmation email.") };
+    }
+  } catch (error) {
+    console.error("Could not resend Supabase verification email:", error);
+    return { status: "error", message: "We could not resend the confirmation email. Please try again later." };
   }
+
   return {
     status: "success",
     message: "If an unverified account matches this email, a confirmation email has been sent.",
@@ -154,14 +171,6 @@ export async function signOut() {
 }
 
 export async function saveTransaction(formData: FormData) {
-  const parsed = transactionSchema.safeParse({
-    amount: formData.get("amount"),
-    type: formData.get("type"),
-    category: formData.get("category"),
-    description: formData.get("description") || "",
-    transaction_date: formData.get("transaction_date"),
-  });
-  if (!parsed.success) redirect(messageUrl("/dashboard/transactions", "Check the amount, category, type, and date."));
   const { supabase, user } = await getUser();
   const rawReceiptPath = formData.get("receipt_path");
   if (rawReceiptPath !== null && typeof rawReceiptPath !== "string") {
@@ -172,15 +181,31 @@ export async function saveTransaction(formData: FormData) {
   if (receiptPath && !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\.(jpg|png|webp|pdf)$/i.test(receiptName)) {
     redirect(messageUrl("/dashboard/transactions", "Receipt path must belong to your account."));
   }
+  // From here on receiptPath is a freshly uploaded file in this user's folder; drop it if the save fails.
+  async function failWithReceiptCleanup(message: string): Promise<never> {
+    if (receiptPath) {
+      const { error: cleanupError } = await supabase.storage.from("receipts").remove([receiptPath]);
+      if (cleanupError) console.error("Could not remove receipt after transaction save failed:", cleanupError.message);
+    }
+    redirect(messageUrl("/dashboard/transactions", message));
+  }
+  const parsed = transactionSchema.safeParse({
+    amount: formData.get("amount"),
+    type: formData.get("type"),
+    category: formData.get("category"),
+    description: formData.get("description") || "",
+    transaction_date: formData.get("transaction_date"),
+  });
+  if (!parsed.success) return failWithReceiptCleanup("Check the amount, category, type, and date.");
   const id = formData.get("id");
   let previousReceiptPath: string | null = null;
   if (typeof id === "string" && id) {
     const parsedId = z.string().uuid().safeParse(id);
-    if (!parsedId.success) redirect(messageUrl("/dashboard/transactions", "Choose a valid transaction."));
+    if (!parsedId.success) return failWithReceiptCleanup("Choose a valid transaction.");
     const { data: existing, error } = await supabase.from("transactions")
       .select("receipt_path").eq("id", parsedId.data).eq("user_id", user.id).maybeSingle();
-    if (error) redirect(messageUrl("/dashboard/transactions", `Could not load transaction: ${error.message}`));
-    if (!existing) redirect(messageUrl("/dashboard/transactions", "That transaction was not found."));
+    if (error) return failWithReceiptCleanup(`Could not load transaction: ${error.message}`);
+    if (!existing) return failWithReceiptCleanup("That transaction was not found.");
     previousReceiptPath = existing.receipt_path;
   }
   const values = {
@@ -202,13 +227,7 @@ export async function saveTransaction(formData: FormData) {
       });
     saveError = error?.message || null;
   }
-  if (saveError) {
-    if (receiptPath) {
-      const { error: cleanupError } = await supabase.storage.from("receipts").remove([receiptPath]);
-      if (cleanupError) console.error("Could not remove receipt after transaction save failed:", cleanupError.message);
-    }
-    redirect(messageUrl("/dashboard/transactions", `Transaction could not be saved: ${saveError}`));
-  }
+  if (saveError) return failWithReceiptCleanup(`Transaction could not be saved: ${saveError}`);
   if (previousReceiptPath && receiptPath) {
     const { error: cleanupError } = await supabase.storage.from("receipts").remove([previousReceiptPath]);
     if (cleanupError) {

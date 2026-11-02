@@ -5,7 +5,7 @@ import { signUp } from "@/app/actions";
 import { AuthPageRedirect } from "@/components/auth-page-redirect";
 import { Brand } from "@/components/brand";
 import { Notice } from "@/components/notice";
-import { Button } from "@/components/ui/button";
+import { SubmitButton } from "@/components/submit-button";
 import { getSupabaseConfig } from "@/lib/supabase/config";
 import { safeNextPath } from "@/lib/auth";
 
@@ -45,7 +45,7 @@ async function SignupContent({ searchParams }: { searchParams: Promise<{ error?:
               <label className="label">Your name<input className="field" name="display_name" type="text" autoComplete="name" maxLength={80} required /></label>
               <label className="label">Email address<input className="field" name="email" type="email" autoComplete="email" required /></label>
               <label className="label">Password<span className="text-[11px] font-normal text-[#788480]">At least 8 characters</span><input className="field" name="password" type="password" autoComplete="new-password" minLength={8} required /></label>
-              <Button type="submit" className="mt-2 w-full" disabled={!getSupabaseConfig()}>Create account</Button>
+              <SubmitButton className="mt-2 w-full" disabled={!getSupabaseConfig()} pendingLabel="Creating account…">Create account</SubmitButton>
             </form>
             <p className="mt-6 text-center text-sm text-[#788480]">Already have an account? <Link href={{ pathname: "/login", query: { next } }} className="font-semibold text-[#265be8] hover:underline">Log in</Link></p>
           </div>

@@ -2,10 +2,16 @@
 
 import { useActionState, useEffect, useState, type FormEvent } from "react";
 import Link from "next/link";
-import { resendVerificationEmail, signIn, type ResendVerificationState } from "@/app/actions";
+import {
+  resendVerificationEmail,
+  signIn,
+  type ResendVerificationState,
+  type SignInState,
+} from "@/app/actions";
 import { Button } from "@/components/ui/button";
 
 const initialResendState: ResendVerificationState = { status: "idle", message: "" };
+const initialSignInState: SignInState = { message: "", unverified: false };
 const resendCooldownMs = 60_000;
 
 export function LoginForm({
@@ -18,23 +24,33 @@ export function LoginForm({
   unverified: boolean;
 }) {
   const [email, setEmail] = useState("");
-  const [resendState, resendAction, isPending] = useActionState(
+  // Controlled so React's post-action form reset does not wipe the password after a failed attempt.
+  const [password, setPassword] = useState("");
+  const [signInState, signInAction, isSignInPending] = useActionState(signIn, initialSignInState);
+  const [resendState, resendAction, isResendPending] = useActionState(
     resendVerificationEmail,
     initialResendState,
   );
-  const [secondsRemaining, setSecondsRemaining] = useState(0);
+  const [resendCooldowns, setResendCooldowns] = useState<Record<string, number>>({});
+  const [now, setNow] = useState(0);
+  const normalizedEmail = email.trim().toLowerCase();
+  const cooldownUntil = resendCooldowns[normalizedEmail] || 0;
+  const secondsRemaining = cooldownUntil
+    ? Math.max(0, Math.ceil((cooldownUntil - now) / 1000))
+    : 0;
+  const showUnverified = unverified || signInState.unverified;
 
   useEffect(() => {
     if (secondsRemaining === 0) return;
     const timer = window.setTimeout(
-      () => setSecondsRemaining((remaining) => Math.max(0, remaining - 1)),
+      () => setNow(Date.now()),
       1000,
     );
     return () => window.clearTimeout(timer);
   }, [secondsRemaining]);
 
   function handleResendSubmit(event: FormEvent<HTMLFormElement>) {
-    if (!enabled || !email.trim() || isPending) {
+    if (!enabled || !email.trim() || isResendPending) {
       event.preventDefault();
       return;
     }
@@ -42,17 +58,27 @@ export function LoginForm({
       event.preventDefault();
       return;
     }
-    setSecondsRemaining(resendCooldownMs / 1000);
+    const startedAt = Date.now();
+    setNow(startedAt);
+    setResendCooldowns((current) => ({
+      ...current,
+      [normalizedEmail]: startedAt + resendCooldownMs,
+    }));
   }
 
   return (
     <>
-      {unverified && (
+      {signInState.message && (
+        <p className="mb-4 text-sm leading-5 text-[var(--danger)]" role="alert">
+          {signInState.message}
+        </p>
+      )}
+      {unverified && !signInState.message && (
         <p className="mb-4 text-sm leading-5 text-[var(--danger)]" role="alert">
           This email address is not verified yet. Check your inbox or request a new confirmation email.
         </p>
       )}
-      <form action={signIn} className="grid gap-4">
+      <form action={signInAction} className="grid gap-4">
         <input type="hidden" name="next" value={next} />
         <label className="label">
           Email address
@@ -63,18 +89,30 @@ export function LoginForm({
             autoComplete="email"
             value={email}
             onChange={(event) => setEmail(event.target.value)}
+            readOnly={isSignInPending}
             required
           />
         </label>
         <label className="label">
           Password
-          <input className="field" name="password" type="password" autoComplete="current-password" required />
+          <input
+            className="field"
+            name="password"
+            type="password"
+            autoComplete="current-password"
+            value={password}
+            onChange={(event) => setPassword(event.target.value)}
+            readOnly={isSignInPending}
+            required
+          />
         </label>
-        <Button type="submit" className="mt-2 w-full" disabled={!enabled}>Log in</Button>
+        <Button type="submit" className="mt-2 w-full" disabled={!enabled || isSignInPending}>
+          {isSignInPending ? "Signing in…" : "Log in"}
+        </Button>
       </form>
-      {unverified && (
+      {showUnverified && (
         <form action={resendAction} onSubmit={handleResendSubmit} className="mt-4 grid gap-2">
-          <input type="hidden" name="email" value={email} />
+          <input type="hidden" name="email" value={normalizedEmail} />
           <input type="hidden" name="next" value={next} />
           {resendState.message && (
             <p
@@ -88,9 +126,9 @@ export function LoginForm({
             type="submit"
             variant="secondary"
             className="w-full"
-            disabled={!enabled || !email.trim() || isPending || secondsRemaining > 0}
+            disabled={!enabled || !email.trim() || isResendPending || secondsRemaining > 0}
           >
-            {isPending
+            {isResendPending
               ? "Sending confirmation email…"
               : secondsRemaining > 0
                 ? `Resend available in ${secondsRemaining}s`
