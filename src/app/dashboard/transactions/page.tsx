@@ -67,6 +67,7 @@ async function TransactionsContent({ searchParams }: { searchParams: SearchParam
     data = result.data;
   }
   const transactions = data || [];
+  const filtered = Boolean(type || category || from || to || safeSearch);
   const signedReceipts = await Promise.all(transactions.map(async (item) => {
     if (!item.receipt_path) return [item.id, null] as const;
     const { data: signed, error: signedError } = await supabase.storage.from("receipts")
@@ -113,7 +114,7 @@ async function TransactionsContent({ searchParams }: { searchParams: SearchParam
       <section className="panel overflow-hidden">
         <div className="flex items-center justify-between px-5 py-4"><div><h2 className="text-sm font-bold">Transaction history</h2><p className="mt-1 text-xs text-[var(--muted)]">{count || 0} {(count || 0) === 1 ? "record" : "records"} · page {page} of {totalPages}</p></div><Search size={16} className="text-[var(--muted)]" /></div>
         {transactions.length === 0 ? (
-          <div className="border-t border-[var(--line)] px-5 py-12 text-center"><p className="text-sm font-semibold">{data?.length ? "No transactions match these filters." : "Your transaction history starts here."}</p><p className="mt-2 text-sm text-[var(--muted)]">{data?.length ? "Try changing the search or filters." : "Add your first income or expense above."}</p></div>
+          <div className="border-t border-[var(--line)] px-5 py-12 text-center"><p className="text-sm font-semibold">{filtered ? "No transactions match these filters." : "Your transaction history starts here."}</p><p className="mt-2 text-sm text-[var(--muted)]">{filtered ? "Try changing the search or filters." : "Add your first income or expense above."}</p></div>
         ) : (
           <div className="table-wrap">
             <table className="data-table min-w-[760px]">
