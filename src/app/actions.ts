@@ -7,6 +7,7 @@ import { z } from "zod";
 import { CATEGORIES } from "@/lib/finance";
 import { safeNextPath } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
+import { getSupabaseConfig } from "@/lib/supabase/config";
 
 const transactionSchema = z.object({
   amount: z.coerce.number().positive().max(999999999),
@@ -48,6 +49,16 @@ function formatAuthError(error: { message?: string } | null, fallback: string) {
   return message || fallback;
 }
 
+async function getConfirmationRedirect(next: string) {
+  const requestHeaders = await headers();
+  const forwardedHost = requestHeaders.get("x-forwarded-host") || requestHeaders.get("host") || "localhost:3000";
+  const origin = process.env.NEXT_PUBLIC_SITE_URL
+    || `${requestHeaders.get("x-forwarded-proto") || "http"}://${forwardedHost}`;
+  const emailRedirectTo = new URL("/auth/confirm", origin);
+  emailRedirectTo.searchParams.set("next", next);
+  return emailRedirectTo.toString();
+}
+
 async function getUser() {
   const supabase = await createClient();
   const { data: { user }, error } = await supabase.auth.getUser();
@@ -64,7 +75,15 @@ export async function signIn(formData: FormData) {
   }
   const supabase = await createClient();
   const { error } = await supabase.auth.signInWithPassword({ email: email.data, password: password.data });
-  if (error) redirect(`${messageUrl("/login", formatAuthError(error, "Check your email and password."))}&next=${encodeURIComponent(next)}`);
+  if (error) {
+    const unverified = error.code === "email_not_confirmed"
+      || error.message.toLowerCase().includes("email not confirmed");
+    const loginUrl = `${messageUrl(
+      "/login",
+      unverified ? "Please verify your email before logging in." : formatAuthError(error, "Check your email and password."),
+    )}&next=${encodeURIComponent(next)}`;
+    redirect(unverified ? `${loginUrl}&unverified=1` : loginUrl);
+  }
   revalidatePath("/", "layout");
   redirect(next);
 }
@@ -78,16 +97,11 @@ export async function signUp(formData: FormData) {
     redirect(`${messageUrl("/signup", "Use a name, valid email, and password with at least 8 characters.")}&next=${encodeURIComponent(next)}`);
   }
   const supabase = await createClient();
-  const requestHeaders = await headers();
-  const forwardedHost = requestHeaders.get("x-forwarded-host") || requestHeaders.get("host") || "localhost:3000";
-  const origin = process.env.NEXT_PUBLIC_SITE_URL
-    || `${requestHeaders.get("x-forwarded-proto") || "http"}://${forwardedHost}`;
-  const emailRedirectTo = new URL("/auth/confirm", origin);
-  emailRedirectTo.searchParams.set("next", next);
+  const emailRedirectTo = await getConfirmationRedirect(next);
   const { data, error } = await supabase.auth.signUp({
     email: email.data,
     password: password.data,
-    options: { data: { display_name: name.data }, emailRedirectTo: emailRedirectTo.toString() },
+    options: { data: { display_name: name.data }, emailRedirectTo },
   });
   if (error) redirect(`${messageUrl("/signup", formatAuthError(error, "We could not create your account right now."))}&next=${encodeURIComponent(next)}`);
   if (!data.session) {
@@ -95,6 +109,40 @@ export async function signUp(formData: FormData) {
   }
   revalidatePath("/", "layout");
   redirect(next);
+}
+
+export type ResendVerificationState = {
+  status: "idle" | "success" | "error";
+  message: string;
+};
+
+export async function resendVerificationEmail(
+  _previousState: ResendVerificationState,
+  formData: FormData,
+): Promise<ResendVerificationState> {
+  const email = z.string().email().safeParse(formData.get("email"));
+  if (!email.success) {
+    return { status: "error", message: "Enter a valid email address first." };
+  }
+  if (!getSupabaseConfig()) {
+    return { status: "error", message: "Email verification is not connected right now." };
+  }
+
+  const next = safeNextPath(formData.get("next"));
+  const supabase = await createClient();
+  const emailRedirectTo = await getConfirmationRedirect(next);
+  const { error } = await supabase.auth.resend({
+    type: "signup",
+    email: email.data,
+    options: { emailRedirectTo },
+  });
+  if (error) {
+    return { status: "error", message: formatAuthError(error, "We could not resend the confirmation email.") };
+  }
+  return {
+    status: "success",
+    message: "If an unverified account matches this email, a confirmation email has been sent.",
+  };
 }
 
 export async function signOut() {
