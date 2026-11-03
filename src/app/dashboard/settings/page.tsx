@@ -48,7 +48,7 @@ async function SettingsContent({ searchParams }: { searchParams: SearchParams })
           <label className="label">Display currency<select className="field" name="currency" defaultValue={currency}>{options.map(([code, label]) => <option key={code} value={code}>{label}</option>)}</select></label>
           <div className="rounded-xl bg-[var(--surface-muted)] p-4">
             <p className="text-xs font-semibold">Signed in as</p>
-            <p className="mt-1 text-sm text-[var(--muted)]">{user.email}</p>
+            <p className="mt-1 break-all text-sm text-[var(--muted)]">{user.email}</p>
             <p className="mt-3 text-sm leading-5 text-[var(--muted)]">Currency changes how amounts are displayed; existing transaction amounts are not converted.</p>
           </div>
           <button className="button w-fit" type="submit">Save settings</button>

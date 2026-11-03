@@ -14,6 +14,14 @@ function amountValue(value: number | string | null) {
   return Number(value || 0);
 }
 
+// Dividers between the four totals: stacked on phones, a 2×2 grid on tablets, one row on wide screens.
+const statDividers = [
+  "",
+  "border-t sm:border-t-0 sm:border-l",
+  "border-t xl:border-t-0 xl:border-l",
+  "border-t sm:border-l xl:border-t-0",
+];
+
 export default function DashboardPage() {
   return <Suspense fallback={<PageLoading />}><DashboardContent /></Suspense>;
 }
@@ -78,16 +86,17 @@ async function DashboardContent() {
       <PageHeading title="Overview"
         description={`Your finances in ${periodLabel}.`}
         action={<Link href="/dashboard/transactions" className="button button-primary-blue"><Plus size={16} />Add a transaction</Link>} />
-      <section className="panel mb-5 grid grid-cols-2 divide-x divide-y divide-[var(--line)] xl:grid-cols-4 xl:divide-y-0">
+      {/* One figure per row on phones so amounts are never cut off. */}
+      <section className="panel mb-5 grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4">
         {[
           { label: "Income this month", amount: income, note: "Recorded income" },
           { label: "Spent this month", amount: expenses, note: "Recorded expenses" },
           { label: "Remaining balance", amount: income - expenses, note: "Income minus expenses" },
           { label: "Monthly budget", amount: budgetTotal, note: utilization === null ? "No budget set yet" : `${utilization}% used · ${formatMoney(budgetTotal - budgetedSpend, currency)} left` },
-        ].map((item) => (
-          <article key={item.label} className="min-w-0 px-4 py-4 sm:px-5 sm:py-5 xl:px-6">
+        ].map((item, index) => (
+          <article key={item.label} className={`min-w-0 border-[var(--line)] px-4 py-4 sm:px-5 sm:py-5 xl:px-6 ${statDividers[index]}`}>
             <p className="text-xs font-medium text-[var(--muted)]">{item.label}</p>
-            <p className="mt-3 truncate text-[26px] font-semibold leading-tight tracking-[-.03em] sm:text-[30px]">{formatMoney(item.amount, currency)}</p>
+            <p className="mt-3 truncate text-[26px] font-semibold leading-tight tracking-[-.03em] md:text-[30px]">{formatMoney(item.amount, currency)}</p>
             <p className="mt-2 text-xs text-[var(--muted)]">{item.note}</p>
           </article>
         ))}
@@ -102,20 +111,20 @@ async function DashboardContent() {
       <FinanceCharts categories={categoryPoints} months={monthlyPoints} currency={currency} />
       <div className="mt-5 grid gap-5 xl:grid-cols-[1.1fr_.9fr]">
         <section className="panel overflow-hidden">
-          <div className="flex items-center justify-between px-5 pb-2 pt-5 sm:px-6">
+          <div className="flex items-center justify-between gap-3 px-5 pb-2 pt-5 sm:px-6">
             <div><h2 className="text-sm font-bold">Recent transactions</h2><p className="mt-1 text-xs text-[var(--muted)]">Your latest recorded activity</p></div>
-            <Link href="/dashboard/transactions" className="flex items-center gap-1 text-xs font-semibold text-[var(--ink-soft)] hover:underline">All transactions <ArrowRight size={13} /></Link>
+            <Link href="/dashboard/transactions" className="flex min-h-10 shrink-0 items-center gap-1 text-xs font-semibold text-[var(--ink-soft)] hover:underline">All transactions <ArrowRight size={13} /></Link>
           </div>
           {transactions.length === 0 ? (
             <div className="px-6 py-12 text-center"><p className="text-sm font-semibold">Your first transaction starts the picture.</p><p className="mt-2 text-xs text-[var(--muted)]">Add income or an expense to see it here.</p><Link className="button button-secondary button-small mt-4" href="/dashboard/transactions"><Plus size={14} />Add transaction</Link></div>
           ) : (
             <div className="table-wrap">
               <table className="data-table">
-                <thead><tr><th>Transaction</th><th>Category</th><th>Date</th><th className="text-right">Amount</th></tr></thead>
+                <thead><tr><th>Transaction</th><th className="hidden sm:table-cell">Category</th><th>Date</th><th className="text-right">Amount</th></tr></thead>
                 <tbody>{transactions.slice(0, 5).map((item) => (
                   <tr key={item.id}>
-                    <td><span className="block font-semibold">{item.description || item.category}</span><span className="mt-1 block text-xs text-[var(--muted)]">{item.type === "income" ? "Income" : "Expense"}</span></td>
-                    <td>{item.category}</td><td className="whitespace-nowrap text-[var(--muted)]">{formatPakistanDate(item.transaction_date)}</td>
+                    <td><span className="block break-words font-semibold">{item.description || item.category}</span><span className="mt-1 block text-xs text-[var(--muted)]">{item.type === "income" ? "Income" : "Expense"}<span className="sm:hidden"> · {item.category}</span></span></td>
+                    <td className="hidden sm:table-cell">{item.category}</td><td className="whitespace-nowrap text-[var(--muted)]">{formatPakistanDate(item.transaction_date)}</td>
                     <td className="whitespace-nowrap text-right font-medium">{item.type === "income" ? "+" : "−"}{formatMoney(amountValue(item.amount), currency)}</td>
                   </tr>
                 ))}</tbody>
@@ -125,7 +134,7 @@ async function DashboardContent() {
         </section>
         <div className="grid content-start gap-5">
           <section className="panel p-5 sm:p-6">
-            <div className="mb-5 flex items-start justify-between"><div><h2 className="text-sm font-bold">Budget check-in</h2><p className="mt-1 text-xs text-[var(--muted)]">How this month is shaping up</p></div><Link href="/dashboard/budgets" aria-label="Manage budgets" className="icon-button !size-8"><ArrowRight size={15} /></Link></div>
+            <div className="mb-5 flex items-start justify-between"><div><h2 className="text-sm font-bold">Budget check-in</h2><p className="mt-1 text-xs text-[var(--muted)]">How this month is shaping up</p></div><Link href="/dashboard/budgets" aria-label="Manage budgets" className="icon-button shrink-0"><ArrowRight size={15} /></Link></div>
             {budgets.length === 0 ? <div className="rounded-xl bg-[var(--surface-muted)] p-5 text-sm leading-6 text-[var(--muted)]">Set a category budget to see how spending compares with your plan.<Link href="/dashboard/budgets" className="mt-2 block font-semibold text-[var(--ink)] underline underline-offset-2">Create a budget</Link></div> : (
               <div className="grid gap-5">{budgets.map((item) => {
                 const percent = Math.round(item.spent / Number(item.amount) * 100);
@@ -138,7 +147,7 @@ async function DashboardContent() {
             )}
           </section>
           <section className="panel p-5 sm:p-6">
-            <div className="mb-4 flex items-start justify-between"><div><h2 className="text-sm font-bold">Bills coming up</h2><p className="mt-1 text-xs text-[var(--muted)]">Due within the next 30 days</p></div><Link href="/dashboard/bills" aria-label="View all bills" className="icon-button !size-8"><ArrowRight size={15} /></Link></div>
+            <div className="mb-4 flex items-start justify-between"><div><h2 className="text-sm font-bold">Bills coming up</h2><p className="mt-1 text-xs text-[var(--muted)]">Due within the next 30 days</p></div><Link href="/dashboard/bills" aria-label="View all bills" className="icon-button shrink-0"><ArrowRight size={15} /></Link></div>
             {overdueCount > 0 && <p className="mb-3 rounded-lg bg-[var(--danger-bg)] px-3 py-2 text-xs font-semibold text-[var(--danger)]">{overdueCount} overdue {overdueCount === 1 ? "bill" : "bills"} need your attention.</p>}
             {bills.length === 0 ? <p className="rounded-xl bg-[var(--surface-muted)] p-4 text-xs leading-5 text-[var(--muted)]">No bills are due soon. Add recurring payments to keep track of them here.</p> : (
               <div className="grid gap-1">{bills.map((bill) => <div key={bill.id} className="flex items-center gap-3 border-t border-[var(--line)] py-3 first:border-0">

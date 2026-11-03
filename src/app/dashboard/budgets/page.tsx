@@ -46,9 +46,9 @@ async function BudgetsContent({ searchParams }: { searchParams: SearchParams }) 
       <Notice message={params.error} />
       <Notice message={params.success} type="success" />
       <section className="mb-5 grid gap-3 sm:grid-cols-3">
-        <article className="panel p-5"><p className="text-sm font-medium text-[var(--muted)]">Planned for {monthName}</p><p className="display mt-3 text-2xl">{formatMoney(totalBudget, currency)}</p></article>
-        <article className="panel p-5"><p className="text-sm font-medium text-[var(--muted)]">Spent in budgeted categories</p><p className="display mt-3 text-2xl">{formatMoney(totalSpent, currency)}</p></article>
-        <article className="panel p-5"><p className="text-sm font-medium text-[var(--muted)]">Left across these budgets</p><p className="display mt-3 text-2xl">{formatMoney(totalBudget - totalSpent, currency)}</p></article>
+        <article className="panel min-w-0 p-5"><p className="text-sm font-medium text-[var(--muted)]">Planned for {monthName}</p><p className="display mt-3 break-words text-2xl">{formatMoney(totalBudget, currency)}</p></article>
+        <article className="panel min-w-0 p-5"><p className="text-sm font-medium text-[var(--muted)]">Spent in budgeted categories</p><p className="display mt-3 break-words text-2xl">{formatMoney(totalSpent, currency)}</p></article>
+        <article className="panel min-w-0 p-5"><p className="text-sm font-medium text-[var(--muted)]">Left across these budgets</p><p className="display mt-3 break-words text-2xl">{formatMoney(totalBudget - totalSpent, currency)}</p></article>
       </section>
       <section className="panel mb-5 p-4 sm:p-5">
         <div className="mb-4"><h2 className="text-sm font-bold">Set a category limit</h2><p className="mt-1 text-sm text-[var(--muted)]">Saving the same category and month updates its existing budget.</p></div>
@@ -80,13 +80,13 @@ async function BudgetsContent({ searchParams }: { searchParams: SearchParams }) 
                   <div className="progress-track mt-4 h-2"><div className={`progress-value ${percentage >= 100 ? "over" : percentage >= 80 ? "warning" : ""}`} style={{ width: `${Math.min(percentage, 100)}%` }} /></div>
                   <p className={`mt-2 text-sm ${percentage >= 100 ? "text-[var(--danger)]" : percentage >= 80 ? "text-[var(--warning-ink)]" : "text-[var(--muted)]"}`}>{percentage >= 100 ? `Over by ${formatMoney(spent - Number(budget.amount), currency)}` : percentage >= 80 ? "Getting close to your limit" : `${formatMoney(Number(budget.amount) - spent, currency)} remaining`}</p>
                   <details className="mt-4 border-t border-[var(--line)] pt-3">
-                    <summary className="cursor-pointer text-sm font-medium underline underline-offset-2">Edit budget</summary>
+                    <summary className="cursor-pointer py-2.5 text-sm font-medium underline underline-offset-2">Edit budget</summary>
                     <form action={saveBudget} className="mt-3 grid gap-3 sm:grid-cols-[1fr_1fr_auto] sm:items-end">
                       <input type="hidden" name="category" value={budget.category} /><input type="hidden" name="month" value={month} /><input type="hidden" name="year" value={year} />
                       <label className="label">Amount<input className="field" name="amount" type="number" min="0.01" step="0.01" defaultValue={budget.amount} required /></label>
                       <button className="button button-small" type="submit">Save</button>
                     </form>
-                    <ConfirmActionForm action={deleteBudget} message={`Remove the ${budget.category} budget for ${monthName} ${year}?`} className="mt-2"><input type="hidden" name="id" value={budget.id} /><button className="text-sm font-semibold text-[var(--danger)] hover:underline" type="submit">Remove this budget</button></ConfirmActionForm>
+                    <ConfirmActionForm action={deleteBudget} message={`Remove the ${budget.category} budget for ${monthName} ${year}?`} className="mt-2"><input type="hidden" name="id" value={budget.id} /><button className="min-h-10 text-sm font-semibold text-[var(--danger)] hover:underline" type="submit">Remove this budget</button></ConfirmActionForm>
                   </details>
                 </article>
               );

@@ -46,6 +46,10 @@
   --font-sans: "Segoe UI", "Helvetica Neue", sans-serif;
 }
 
+/* Layer order is base < components < utilities. Element defaults live in base so component
+   classes (.button, .field, …) can override them, and utilities can override both.
+   Any unlayered rule here would beat every layer regardless of specificity. */
+@layer base {
 * { box-sizing: border-box; }
 
 body {
@@ -67,14 +71,14 @@ button { cursor: pointer; }
   outline: 3px solid var(--focus);
   outline-offset: 3px;
 }
+}
 
+@layer components {
 .display { font-family: Georgia, "Times New Roman", serif; letter-spacing: -.045em; }
 .muted { color: var(--muted); }
 .panel { border: 1px solid var(--line); border-radius: 8px; background: var(--white); }
 .dashboard-shell { font-variant-numeric: tabular-nums; }
 .dashboard-shell .display { font-family: inherit; letter-spacing: -.02em; }
-.dashboard-shell .brand-mark { width: 36px; height: 36px; border-radius: 6px; background: transparent; color: var(--ink); }
-.dashboard-shell .brand-name { font-size: 16px; letter-spacing: -.02em; }
 .dashboard-shell .button { min-height: 36px; border-radius: 6px; background: var(--ink); color: var(--white); }
 .dashboard-shell .button:hover { background: var(--ink-hover); }
 .dashboard-shell .button-secondary { border-color: var(--line); background: var(--white); color: var(--ink); }
@@ -160,7 +164,32 @@ textarea.field { min-height: 92px; resize: vertical; }
 .progress-value { height: 100%; border-radius: inherit; background: var(--blue); transition: width .25s ease; }
 .progress-value.warning { background: var(--warning); }
 .progress-value.over { background: var(--danger); }
-.page-enter { animation: reveal .28s ease both; }
+/* "backwards", not "both": a transform kept after the animation would trap position:fixed
+   children (phone edit sheets, notices) inside the page instead of the viewport. */
+.page-enter { animation: reveal .28s ease backwards; }
+/* Edit menus: a sheet under the phone header (outside any scrolling table), a dropdown on desktop. */
+.edit-sheet {
+  position: fixed;
+  inset: 72px 16px auto;
+  z-index: 70;
+  max-height: calc(100dvh - 88px);
+  overflow-y: auto;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--white);
+  padding: 16px;
+  text-align: left;
+  box-shadow: 0 12px 32px rgb(23 35 33 / 18%);
+}
+@media (min-width: 1024px) {
+  .edit-sheet { position: absolute; inset: 100% 0 auto auto; width: 360px; max-height: none; margin-top: 8px; }
+}
+}
+/* Deliberately unlayered: inside the dashboard these must override the logo's own utilities
+   (blue badge, 17px name) used on the public pages. */
+.dashboard-shell .brand-mark { width: 36px; height: 36px; border-radius: 6px; background: transparent; color: var(--ink); }
+.dashboard-shell .brand-name { font-size: 16px; letter-spacing: -.02em; }
+
 @keyframes reveal { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } }
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { scroll-behavior: auto !important; animation-duration: .01ms !important; animation-iteration-count: 1 !important; transition-duration: .01ms !important; }

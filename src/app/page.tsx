@@ -15,8 +15,8 @@ export default function Home() {
       <header className="mx-auto flex max-w-[1240px] items-center justify-between px-5 py-5 sm:px-8">
         <Link href="/" aria-label="SpendFlow home"><Brand /></Link>
         <nav className="flex items-center gap-2 sm:gap-5" aria-label="Account">
-          <Link href="/login" className="rounded-lg px-3 py-2 text-sm font-semibold text-[#53605c] hover:text-[#172321]">Log in</Link>
-          <Link href="/signup" className="button button-small sm:min-h-[42px] sm:px-4">Get started <ChevronRight size={15} /></Link>
+          <Link href="/login" className="whitespace-nowrap rounded-lg px-2 py-2 text-sm font-semibold text-[#53605c] hover:text-[#172321] sm:px-3">Log in</Link>
+          <Link href="/signup" className="button button-small whitespace-nowrap sm:min-h-[42px] sm:px-4">Get started <ChevronRight size={15} /></Link>
         </nav>
       </header>
       <section className="mx-auto grid max-w-[1240px] items-center gap-12 px-5 pb-20 pt-10 sm:px-8 md:grid-cols-[1.05fr_.95fr] md:gap-16 md:pb-28 md:pt-20">
@@ -44,7 +44,7 @@ export default function Home() {
               <div className="flex items-center gap-3"><Brand compact /><span><b className="block text-sm">Your money, in focus</b><span className="text-xs text-[#788480]">A simpler daily picture</span></span></div>
               <span className="rounded-full bg-[#edf2ff] px-3 py-1.5 text-[11px] font-semibold text-[#265be8]">Overview</span>
             </div>
-            <div className="grid grid-cols-2 gap-3 py-5">
+            <div className="grid gap-3 py-5 min-[420px]:grid-cols-2">
               <div className="rounded-xl bg-[#f7f8f6] p-4">
                 <span className="text-xs text-[#788480]">Income this month</span>
                 <p className="display mt-3 text-[26px]">A little more clarity</p>

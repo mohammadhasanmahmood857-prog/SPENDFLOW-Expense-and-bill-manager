@@ -6,6 +6,7 @@ import { deleteTransaction, saveTransaction } from "@/app/actions";
 import { Notice } from "@/components/notice";
 import { PageHeading } from "@/components/page-heading";
 import { PageLoading } from "@/components/page-loading";
+import { CloseDetailsButton } from "@/components/close-details-button";
 import { ConfirmActionForm } from "@/components/confirm-action-form";
 import { TransactionEntryForm } from "@/components/transaction-entry-form";
 import { CATEGORIES, formatMoney } from "@/lib/finance";
@@ -96,7 +97,7 @@ async function TransactionsContent({ searchParams }: { searchParams: SearchParam
       <Notice message={params.error} />
       <Notice message={params.success} type="success" />
       <details className="panel mb-5 group">
-        <summary className="flex cursor-pointer list-none items-center justify-between p-4 [&::-webkit-details-marker]:hidden sm:px-5">
+        <summary className="flex cursor-pointer list-none items-center justify-between gap-3 p-4 [&::-webkit-details-marker]:hidden sm:px-5">
           <span className="flex items-center gap-3"><Plus size={17} className="text-[var(--ink-soft)]" /><span><b className="block text-sm">Add a transaction</b><span className="mt-1 block text-xs text-[var(--muted)]">Record income or an expense</span></span></span>
           <span className="button button-small button-primary-blue group-open:bg-[var(--surface-muted)] group-open:text-[var(--ink)]">New entry</span>
         </summary>
@@ -111,25 +112,30 @@ async function TransactionsContent({ searchParams }: { searchParams: SearchParam
         <label className="label">Sort<select className="field" name="sort" defaultValue={params.sort || "date-desc"}><option value="date-desc">Newest first</option><option value="date-asc">Oldest first</option><option value="amount-desc">Highest amount</option><option value="amount-asc">Lowest amount</option></select></label>
         <button className="button button-secondary w-full" type="submit"><SlidersHorizontal size={14} />Filter</button>
       </form>
-      <section className="panel overflow-hidden">
-        <div className="flex items-center justify-between px-5 py-4"><div><h2 className="text-sm font-bold">Transaction history</h2><p className="mt-1 text-xs text-[var(--muted)]">{count || 0} {(count || 0) === 1 ? "record" : "records"} · page {page} of {totalPages}</p></div><Search size={16} className="text-[var(--muted)]" /></div>
+      <section className="panel">
+        <div className="flex items-center justify-between gap-3 px-5 py-4"><div><h2 className="text-sm font-bold">Transaction history</h2><p className="mt-1 text-xs text-[var(--muted)]">{count || 0} {(count || 0) === 1 ? "record" : "records"} · page {page} of {totalPages}</p></div><Search size={16} className="text-[var(--muted)]" /></div>
         {transactions.length === 0 ? (
           <div className="border-t border-[var(--line)] px-5 py-12 text-center"><p className="text-sm font-semibold">{filtered ? "No transactions match these filters." : "Your transaction history starts here."}</p><p className="mt-2 text-sm text-[var(--muted)]">{filtered ? "Try changing the search or filters." : "Add your first income or expense above."}</p></div>
         ) : (
           <div className="table-wrap">
-            <table className="data-table min-w-[760px]">
-              <thead><tr><th>Transaction</th><th>Category</th><th>Date</th><th>Receipt</th><th className="text-right">Amount</th><th className="text-right">Manage</th></tr></thead>
+            {/* Phones show three columns; category, date and receipt move under the description. */}
+            <table className="data-table sm:min-w-[760px]">
+              <thead><tr><th>Transaction</th><th className="hidden sm:table-cell">Category</th><th className="hidden sm:table-cell">Date</th><th className="hidden sm:table-cell">Receipt</th><th className="text-right">Amount</th><th className="text-right">Manage</th></tr></thead>
               <tbody>{transactions.map((item) => (
                 <tr key={item.id}>
-                  <td><span className="block font-semibold">{item.description || item.category}</span><span className="mt-1 block text-xs capitalize text-[var(--muted)]">{item.type}</span></td>
-                  <td><span className="badge badge-blue">{item.category}</span></td>
-                  <td className="whitespace-nowrap text-[var(--ink-soft)]">{formatPakistanDate(item.transaction_date)}</td>
-                  <td>{receiptUrls.get(item.id) ? <a href={receiptUrls.get(item.id)!} target="_blank" rel="noreferrer" className="text-sm font-medium text-[var(--ink-soft)] underline underline-offset-2">View receipt</a> : <span className="text-sm text-[var(--muted)]">—</span>}</td>
+                  <td>
+                    <span className="block break-words font-semibold">{item.description || item.category}</span>
+                    <span className="mt-1 block text-xs capitalize text-[var(--muted)]">{item.type}<span className="normal-case sm:hidden"> · {item.category} · {formatPakistanDate(item.transaction_date)}</span></span>
+                    {receiptUrls.get(item.id) && <a href={receiptUrls.get(item.id)!} target="_blank" rel="noreferrer" className="inline-flex min-h-10 items-center text-xs font-medium text-[var(--ink-soft)] underline underline-offset-2 sm:hidden">View receipt</a>}
+                  </td>
+                  <td className="hidden sm:table-cell"><span className="badge badge-blue">{item.category}</span></td>
+                  <td className="hidden whitespace-nowrap text-[var(--ink-soft)] sm:table-cell">{formatPakistanDate(item.transaction_date)}</td>
+                  <td className="hidden sm:table-cell">{receiptUrls.get(item.id) ? <a href={receiptUrls.get(item.id)!} target="_blank" rel="noreferrer" className="inline-flex min-h-10 items-center text-sm font-medium text-[var(--ink-soft)] underline underline-offset-2">View receipt</a> : <span className="text-sm text-[var(--muted)]">—</span>}</td>
                   <td className="whitespace-nowrap text-right font-medium">{item.type === "income" ? "+" : "−"}{formatMoney(Number(item.amount), currency)}</td>
                   <td className="text-right">
                     <details className="relative inline-block text-left">
                       <summary className="button button-small button-secondary cursor-pointer list-none">Edit</summary>
-                      <div className="absolute right-0 z-20 mt-2 w-[min(85vw,360px)] rounded-xl border border-[var(--line)] bg-white p-4 shadow-xl">
+                      <div className="edit-sheet">
                         <form action={saveTransaction} className="grid gap-3">
                           <input type="hidden" name="id" value={item.id} />
                           <label className="label">Amount<input className="field" name="amount" type="number" min="0.01" step="0.01" defaultValue={item.amount} required /></label>
@@ -140,6 +146,7 @@ async function TransactionsContent({ searchParams }: { searchParams: SearchParam
                           <button className="button w-full" type="submit">Save changes</button>
                         </form>
                         <ConfirmActionForm action={deleteTransaction} message="Delete this transaction? This cannot be undone." className="mt-2"><input type="hidden" name="id" value={item.id} /><button className="button button-danger w-full" type="submit">Delete transaction</button></ConfirmActionForm>
+                        <CloseDetailsButton />
                       </div>
                     </details>
                   </td>

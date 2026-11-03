@@ -94,9 +94,9 @@ export function LoginForm({
           />
         </label>
         <div className="grid gap-[7px]">
-          <div className="flex items-baseline justify-between gap-3">
+          <div className="flex items-center justify-between gap-3">
             <label htmlFor="login-password" className="label">Password</label>
-            <Link href="/forgot-password" className="py-1 text-[13px] font-semibold text-[#265be8] hover:underline">
+            <Link href="/forgot-password" className="-my-2 inline-flex min-h-10 items-center text-[13px] font-semibold text-[#265be8] hover:underline">
               Forgot password?
             </Link>
           </div>

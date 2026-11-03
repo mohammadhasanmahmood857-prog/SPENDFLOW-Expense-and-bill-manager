@@ -45,7 +45,7 @@ export function Sidebar({ name, email }: { name: string; email: string }) {
             <span className="block truncate text-xs font-semibold">{name || "Your account"}</span>
             <span className="block truncate text-xs text-[var(--muted)]">{email}</span>
           </span>
-          <form action={signOut}><button className="text-xs font-medium text-[var(--muted)] hover:text-[var(--ink)]" type="submit">Log out</button></form>
+          <form action={signOut}><button className="-mr-1 min-h-10 rounded-md px-2 text-xs font-medium text-[var(--muted)] hover:text-[var(--ink)]" type="submit">Log out</button></form>
         </div>
       </div>
     </>
@@ -53,12 +53,12 @@ export function Sidebar({ name, email }: { name: string; email: string }) {
   return (
     <>
       <header className="fixed inset-x-0 top-0 z-[60] flex h-14 items-center gap-3 border-b border-[var(--line)] bg-white px-4 lg:hidden">
-        <button className="grid size-9 place-items-center rounded-md text-[var(--ink-soft)] hover:bg-[var(--surface-muted)]" aria-label={open ? "Close menu" : "Open menu"}
+        <button className="-ml-1 grid size-10 place-items-center rounded-md text-[var(--ink-soft)] hover:bg-[var(--surface-muted)]" aria-label={open ? "Close menu" : "Open menu"}
           aria-expanded={open} aria-controls="primary-navigation" onClick={() => setOpen(!open)}>{open ? <X size={18} /> : <Menu size={18} />}</button>
         <Brand />
       </header>
       {open && <button aria-label="Close navigation" className="fixed inset-0 z-40 bg-[var(--ink)]/35 lg:hidden" onClick={() => setOpen(false)} />}
-      <aside id="primary-navigation" className={`fixed inset-y-0 left-0 z-50 flex w-[248px] flex-col border-r border-[var(--line)] bg-white transition-transform duration-200 lg:translate-x-0 ${open ? "translate-x-0" : "-translate-x-full"}`}>
+      <aside id="primary-navigation" className={`fixed inset-y-0 left-0 z-50 flex w-[248px] flex-col overflow-y-auto border-r pt-14 lg:pt-0 border-[var(--line)] bg-white transition-transform duration-200 lg:translate-x-0 ${open ? "translate-x-0" : "-translate-x-full"}`}>
         {navigation}
       </aside>
     </>
