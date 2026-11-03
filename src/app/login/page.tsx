@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import { Suspense } from "react";
 import { connection } from "next/server";
 import { AuthPageRedirect } from "@/components/auth-page-redirect";
@@ -6,6 +7,12 @@ import { Notice } from "@/components/notice";
 import { LoginForm } from "@/components/login-form";
 import { getSupabaseConfig } from "@/lib/supabase/config";
 import { safeNextPath } from "@/lib/auth";
+
+export const metadata: Metadata = {
+  title: "Log in",
+  description: "Sign in to SpendFlow to see your spending, budgets, and bills.",
+  alternates: { canonical: "/login" },
+};
 
 export default function LoginPage({
   searchParams,
@@ -35,7 +42,7 @@ async function LoginContent({
         footnote="SpendFlow keeps your personal finances private."
       >
         <h2 className="display text-3xl">Welcome back</h2>
-        <p className="mt-2 text-sm text-[#788480]">Sign in to see your money in focus.</p>
+        <p className="mt-2 text-sm text-[#65716d]">Sign in to see your money in focus.</p>
         <div className="mt-6">
           <Notice message={params.error} />
           <Notice message={params.notice} type="notice" />
@@ -52,5 +59,5 @@ async function LoginContent({
 }
 
 function AuthLoading({ label }: { label: string }) {
-  return <main className="grid min-h-screen place-items-center text-sm text-[#788480]">{label}</main>;
+  return <main className="grid min-h-screen place-items-center text-sm text-[#65716d]">{label}</main>;
 }

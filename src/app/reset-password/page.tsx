@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 import { Suspense } from "react";
 import { connection } from "next/server";
@@ -6,9 +7,15 @@ import { ResetPasswordForm } from "@/components/reset-password-form";
 import { getSupabaseConfig } from "@/lib/supabase/config";
 import { createClient } from "@/lib/supabase/server";
 
+export const metadata: Metadata = {
+  title: "Choose a new password",
+  description: "Set a new password for your SpendFlow account.",
+  robots: { index: false, follow: false },
+};
+
 export default function ResetPasswordPage() {
   return (
-    <Suspense fallback={<main className="grid min-h-screen place-items-center text-sm text-[#788480]">Loading…</main>}>
+    <Suspense fallback={<main className="grid min-h-screen place-items-center text-sm text-[#65716d]">Loading…</main>}>
       <ResetPasswordContent />
     </Suspense>
   );
@@ -30,12 +37,12 @@ async function ResetPasswordContent() {
       <h2 className="display text-3xl">Choose a new password</h2>
       {user ? (
         <>
-          <p className="mt-2 mb-6 break-words text-sm text-[#788480]">For {user.email}</p>
+          <p className="mt-2 mb-6 break-words text-sm text-[#65716d]">For {user.email}</p>
           <ResetPasswordForm />
         </>
       ) : (
         <>
-          <p className="mt-2 text-sm leading-6 text-[#788480]">
+          <p className="mt-2 text-sm leading-6 text-[#65716d]">
             This reset link has expired, was already used, or was opened in a different browser from the one
             you requested it in.
           </p>

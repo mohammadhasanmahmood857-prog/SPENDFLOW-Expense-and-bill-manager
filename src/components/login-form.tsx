@@ -142,7 +142,7 @@ export function LoginForm({
           </Button>
         </form>
       )}
-      <p className="mt-6 text-center text-sm text-[#788480]">
+      <p className="mt-6 text-center text-sm text-[#65716d]">
         New to SpendFlow?{" "}
         <Link href={{ pathname: "/signup", query: { next } }} className="inline-block py-2 font-semibold text-[#265be8] hover:underline">
           Create an account

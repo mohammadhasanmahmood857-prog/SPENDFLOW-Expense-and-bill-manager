@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { BarChart3, CreditCard, FileText, LayoutDashboard, Menu, Settings2, X } from "lucide-react";
 import { signOut } from "@/app/actions";
 import { Brand } from "@/components/brand";
@@ -17,6 +17,12 @@ const links = [
 export function Sidebar({ name, email }: { name: string; email: string }) {
   const [open, setOpen] = useState(false);
   const pathname = usePathname();
+  useEffect(() => {
+    if (!open) return;
+    const closeOnEscape = (event: KeyboardEvent) => { if (event.key === "Escape") setOpen(false); };
+    window.addEventListener("keydown", closeOnEscape);
+    return () => window.removeEventListener("keydown", closeOnEscape);
+  }, [open]);
   const navigation = (
     <>
       <div className="px-6 pb-8 pt-7"><Brand /></div>
@@ -25,7 +31,7 @@ export function Sidebar({ name, email }: { name: string; email: string }) {
         {links.map(({ href, label, icon: Icon }) => {
           const active = pathname === href || (href !== "/dashboard" && pathname.startsWith(href));
           return (
-            <Link key={href} href={href} onClick={() => setOpen(false)}
+            <Link key={href} href={href} onClick={() => setOpen(false)} aria-current={active ? "page" : undefined}
               className={`flex h-11 items-center gap-3 rounded-md px-3 text-[13px] font-medium transition-colors ${active ? "bg-[var(--surface-muted)] text-[var(--ink)]" : "text-[var(--muted)] hover:bg-[var(--surface-muted)] hover:text-[var(--ink)]"}`}>
               <Icon size={17} strokeWidth={1.9} />{label}
             </Link>
@@ -33,7 +39,7 @@ export function Sidebar({ name, email }: { name: string; email: string }) {
         })}
       </nav>
       <div className="mt-auto border-t border-[var(--line)] p-4">
-        <Link href="/dashboard/settings" onClick={() => setOpen(false)}
+        <Link href="/dashboard/settings" onClick={() => setOpen(false)} aria-current={pathname === "/dashboard/settings" ? "page" : undefined}
           className={`mb-3 flex h-10 items-center gap-3 rounded-md px-2 text-[13px] font-medium ${pathname === "/dashboard/settings" ? "bg-[var(--surface-muted)] text-[var(--ink)]" : "text-[var(--muted)] hover:text-[var(--ink)]"}`}>
           <Settings2 size={17} />Settings
         </Link>
@@ -58,7 +64,7 @@ export function Sidebar({ name, email }: { name: string; email: string }) {
         <Brand />
       </header>
       {open && <button aria-label="Close navigation" className="fixed inset-0 z-40 bg-[var(--ink)]/35 lg:hidden" onClick={() => setOpen(false)} />}
-      <aside id="primary-navigation" className={`fixed inset-y-0 left-0 z-50 flex w-[248px] flex-col overflow-y-auto border-r pt-14 lg:pt-0 border-[var(--line)] bg-white transition-transform duration-200 lg:translate-x-0 ${open ? "translate-x-0" : "-translate-x-full"}`}>
+      <aside id="primary-navigation" className={`fixed inset-y-0 left-0 z-50 flex w-[248px] flex-col overflow-y-auto border-r pt-14 lg:pt-0 border-[var(--line)] bg-white transition-[transform,visibility] duration-200 lg:visible lg:translate-x-0 ${open ? "translate-x-0" : "invisible -translate-x-full"}`}>
         {navigation}
       </aside>
     </>

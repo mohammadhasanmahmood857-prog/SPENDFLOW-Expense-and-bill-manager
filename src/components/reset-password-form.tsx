@@ -25,7 +25,7 @@ export function ResetPasswordForm() {
       <form action={action} className="grid gap-4">
         <label className="label">
           New password
-          <span id="new-password-rule" className="text-[11px] font-normal text-[#788480]">At least 8 characters</span>
+          <span id="new-password-rule" className="text-[11px] font-normal text-[#65716d]">At least 8 characters</span>
           <input
             className="field"
             name="password"
