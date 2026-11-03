@@ -93,9 +93,15 @@ export function LoginForm({
             required
           />
         </label>
-        <label className="label">
-          Password
+        <div className="grid gap-[7px]">
+          <div className="flex items-baseline justify-between gap-3">
+            <label htmlFor="login-password" className="label">Password</label>
+            <Link href="/forgot-password" className="py-1 text-[13px] font-semibold text-[#265be8] hover:underline">
+              Forgot password?
+            </Link>
+          </div>
           <input
+            id="login-password"
             className="field"
             name="password"
             type="password"
@@ -105,7 +111,7 @@ export function LoginForm({
             readOnly={isSignInPending}
             required
           />
-        </label>
+        </div>
         <Button type="submit" className="mt-2 w-full" disabled={!enabled || isSignInPending}>
           {isSignInPending ? "Signing in…" : "Log in"}
         </Button>
@@ -138,7 +144,7 @@ export function LoginForm({
       )}
       <p className="mt-6 text-center text-sm text-[#788480]">
         New to SpendFlow?{" "}
-        <Link href={{ pathname: "/signup", query: { next } }} className="font-semibold text-[#265be8] hover:underline">
+        <Link href={{ pathname: "/signup", query: { next } }} className="inline-block py-2 font-semibold text-[#265be8] hover:underline">
           Create an account
         </Link>
       </p>

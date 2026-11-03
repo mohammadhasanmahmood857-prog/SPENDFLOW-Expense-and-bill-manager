@@ -107,6 +107,8 @@ button { cursor: pointer; }
   padding: 10px 12px;
   color: var(--ink);
 }
+/* Below 16px, iOS Safari zooms the page in when a field is focused. */
+@media (max-width: 639px) { .field { font-size: 16px; } }
 .field::placeholder { color: var(--placeholder); }
 .field:focus { border-color: var(--blue); outline: 3px solid var(--focus-ring); }
 textarea.field { min-height: 92px; resize: vertical; }

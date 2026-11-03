@@ -27,6 +27,12 @@ export async function GET(request: NextRequest) {
   }
 
   if (error) {
+    const isPasswordReset = type === "recovery" || next.startsWith("/reset-password");
+    if (isPasswordReset) {
+      const forgotUrl = new URL("/forgot-password", request.url);
+      forgotUrl.searchParams.set("error", "That reset link has expired or was opened in a different browser. Request a new one here and open it in this browser.");
+      return NextResponse.redirect(forgotUrl);
+    }
     // A PKCE code opened in a different browser than the one used to sign up cannot start a
     // session here, but Supabase has already confirmed the address by this point.
     if (code && /code verifier|code_verifier|flow state/i.test(`${error.code} ${error.message}`)) {

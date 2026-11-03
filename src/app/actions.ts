@@ -162,6 +162,81 @@ export async function resendVerificationEmail(
   };
 }
 
+export type PasswordResetState = {
+  status: "idle" | "success" | "error";
+  message: string;
+};
+
+export async function requestPasswordReset(
+  _previousState: PasswordResetState,
+  formData: FormData,
+): Promise<PasswordResetState> {
+  const email = z.string().email().safeParse(formData.get("email"));
+  if (!email.success) {
+    return { status: "error", message: "Enter a valid email address." };
+  }
+  if (!getSupabaseConfig()) {
+    return { status: "error", message: "Password reset is not connected right now." };
+  }
+
+  try {
+    const supabase = await createClient();
+    const redirectTo = await getConfirmationRedirect("/reset-password");
+    const { error } = await supabase.auth.resetPasswordForEmail(email.data, { redirectTo });
+    if (error) {
+      // Only rate limits are shown as-is; other details could hint at whether an account exists.
+      const message = formatAuthError(error, "");
+      if (message.startsWith("Too many")) return { status: "error", message };
+      console.error("Could not send Supabase password reset email:", error.message);
+      return { status: "error", message: "We could not send the reset email right now. Please try again later." };
+    }
+  } catch (error) {
+    console.error("Could not send Supabase password reset email:", error);
+    return { status: "error", message: "We could not send the reset email right now. Please try again later." };
+  }
+
+  return {
+    status: "success",
+    message: "If an account exists for this email, a reset link is on its way. Open it in this browser.",
+  };
+}
+
+export type UpdatePasswordState = {
+  message: string;
+  expired: boolean;
+};
+
+export async function updatePassword(
+  _previousState: UpdatePasswordState,
+  formData: FormData,
+): Promise<UpdatePasswordState> {
+  const password = z.string().min(8).safeParse(formData.get("password"));
+  if (!password.success) {
+    return { message: "Use a password with at least 8 characters.", expired: false };
+  }
+  if (formData.get("confirm_password") !== password.data) {
+    return { message: "The two passwords do not match.", expired: false };
+  }
+
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) {
+    return { message: "Your reset link has expired. Request a new one.", expired: true };
+  }
+
+  const { error } = await supabase.auth.updateUser({ password: password.data });
+  if (error) {
+    return {
+      message: error.code === "same_password"
+        ? "Choose a password that is different from your current one."
+        : formatAuthError(error, "We could not update your password. Please try again."),
+      expired: false,
+    };
+  }
+  revalidatePath("/", "layout");
+  redirect(messageUrl("/dashboard/settings", "Your password has been updated.", "success"));
+}
+
 export async function signOut() {
   const supabase = await createClient();
   const { error } = await supabase.auth.signOut();
