@@ -7,7 +7,7 @@ import { PageLoading } from "@/components/page-loading";
 import { ConfirmActionForm } from "@/components/confirm-action-form";
 import { CATEGORIES, formatMoney, monthBounds } from "@/lib/finance";
 import { pakistanDateParts } from "@/lib/dates";
-import { createClient } from "@/lib/supabase/server";
+import { createClient, getCurrentUser, getProfile } from "@/lib/supabase/server";
 import { listTransactions } from "@/lib/transaction-data";
 
 type SearchParams = Promise<{ month?: string; year?: string; error?: string; success?: string }>;
@@ -24,10 +24,10 @@ async function BudgetsContent({ searchParams }: { searchParams: SearchParams }) 
   const year = /^\d{4}$/.test(params.year || "") ? Math.min(2200, Math.max(2000, Number(params.year))) : now.year;
   const bounds = monthBounds(year, month);
   const supabase = await createClient();
-  const { data: { user }, error: authError } = await supabase.auth.getUser();
-  if (authError || !user) throw new Error("Your session expired. Please sign in again.");
+  const user = await getCurrentUser();
+  if (!user) throw new Error("Your session expired. Please sign in again.");
   const [profileResult, budgetResult, expenses] = await Promise.all([
-    supabase.from("profiles").select("currency").eq("id", user.id).maybeSingle(),
+    getProfile(user.id),
     supabase.from("budgets").select("*").eq("user_id", user.id).eq("month", month).eq("year", year).order("category"),
     listTransactions(supabase, user.id, { type: "expense", from: bounds.start, to: bounds.end }),
   ]);

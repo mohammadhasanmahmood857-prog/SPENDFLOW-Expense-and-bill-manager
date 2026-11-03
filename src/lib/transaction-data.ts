@@ -12,9 +12,10 @@ export async function listTransactions(
   userId: string,
   range: TransactionRange = {},
 ) {
-  const transactions: Transaction[] = [];
+  // Only the columns the summaries use; skipping receipt OCR text keeps the payload small.
+  const transactions: Pick<Transaction, "id" | "type" | "amount" | "category" | "description" | "transaction_date">[] = [];
   for (let offset = 0; ; offset += 1000) {
-    let query = supabase.from("transactions").select("*").eq("user_id", userId);
+    let query = supabase.from("transactions").select("id,type,amount,category,description,transaction_date").eq("user_id", userId);
     if (range.type) query = query.eq("type", range.type);
     if (range.from) query = query.gte("transaction_date", range.from);
     if (range.to) query = query.lte("transaction_date", range.to);

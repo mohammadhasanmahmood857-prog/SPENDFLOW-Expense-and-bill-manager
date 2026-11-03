@@ -4,7 +4,7 @@ import { saveSettings } from "@/app/actions";
 import { Notice } from "@/components/notice";
 import { PageHeading } from "@/components/page-heading";
 import { PageLoading } from "@/components/page-loading";
-import { createClient } from "@/lib/supabase/server";
+import { getCurrentUser, getProfile } from "@/lib/supabase/server";
 
 type SearchParams = Promise<{ error?: string; success?: string }>;
 
@@ -24,11 +24,9 @@ export default function SettingsPage({ searchParams }: { searchParams: SearchPar
 async function SettingsContent({ searchParams }: { searchParams: SearchParams }) {
   await connection();
   const params = await searchParams;
-  const supabase = await createClient();
-  const { data: { user }, error: authError } = await supabase.auth.getUser();
-  if (authError || !user) throw new Error("Your session expired. Please sign in again.");
-  const { data: profile, error } = await supabase.from("profiles")
-    .select("display_name,currency").eq("id", user.id).maybeSingle();
+  const user = await getCurrentUser();
+  if (!user) throw new Error("Your session expired. Please sign in again.");
+  const { data: profile, error } = await getProfile(user.id);
   if (error) throw new Error(`Could not load preferences: ${error.message}`);
   const displayName = profile?.display_name || String(user.user_metadata.display_name || "");
   const currency = profile?.currency || "PKR";

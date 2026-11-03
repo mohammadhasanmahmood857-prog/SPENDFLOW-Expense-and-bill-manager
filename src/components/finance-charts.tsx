@@ -1,6 +1,6 @@
 "use client";
 
-import { MotionConfig, motion, useReducedMotion } from "motion/react";
+import { useSyncExternalStore } from "react";
 import {
   Bar, BarChart, CartesianGrid, Cell, Pie, PieChart, ResponsiveContainer,
   Tooltip, XAxis, YAxis,
@@ -11,6 +11,17 @@ const colors = ["var(--blue)", "var(--chart-1)", "var(--chart-2)", "var(--chart-
 
 function categoryColor(index: number) {
   return index === 0 ? colors[0] : colors[((index - 1) % (colors.length - 1)) + 1];
+}
+
+// Reads the OS "reduce motion" setting directly instead of shipping an animation library for it.
+const reducedMotionQuery = "(prefers-reduced-motion: reduce)";
+function subscribeReducedMotion(onChange: () => void) {
+  const media = window.matchMedia(reducedMotionQuery);
+  media.addEventListener("change", onChange);
+  return () => media.removeEventListener("change", onChange);
+}
+function useReducedMotion() {
+  return useSyncExternalStore(subscribeReducedMotion, () => window.matchMedia(reducedMotionQuery).matches, () => false);
 }
 
 type CategoryPoint = { name: string; value: number };
@@ -31,8 +42,7 @@ export function FinanceCharts({
 }) {
   const reducedMotion = useReducedMotion();
   return (
-    <MotionConfig reducedMotion="user">
-      <motion.div initial={false} whileInView={{ opacity: 1 }} viewport={{ once: true }} className="grid gap-5 xl:grid-cols-[.9fr_1.1fr]">
+    <div className="grid gap-5 xl:grid-cols-[.9fr_1.1fr]">
         <section className="panel p-5 sm:p-6">
           <div className="mb-5">
             <h2 className="text-sm font-bold">Where spending goes</h2>
@@ -87,7 +97,6 @@ export function FinanceCharts({
             </>
           )}
         </section>
-      </motion.div>
-    </MotionConfig>
+    </div>
   );
 }

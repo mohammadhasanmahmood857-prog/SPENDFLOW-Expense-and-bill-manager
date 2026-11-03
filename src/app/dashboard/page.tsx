@@ -6,7 +6,7 @@ import { PageHeading } from "@/components/page-heading";
 import { PageLoading } from "@/components/page-loading";
 import { formatMoney, monthBounds } from "@/lib/finance";
 import { formatPakistanDate, pakistanDateParts } from "@/lib/dates";
-import { createClient } from "@/lib/supabase/server";
+import { createClient, getCurrentUser, getProfile } from "@/lib/supabase/server";
 import { listTransactions } from "@/lib/transaction-data";
 import { connection } from "next/server";
 
@@ -29,8 +29,8 @@ export default function DashboardPage() {
 async function DashboardContent() {
   await connection();
   const supabase = await createClient();
-  const { data: { user }, error: authError } = await supabase.auth.getUser();
-  if (authError || !user) throw new Error("Your session expired. Please sign in again.");
+  const user = await getCurrentUser();
+  if (!user) throw new Error("Your session expired. Please sign in again.");
   const { year, month, day } = pakistanDateParts();
   const current = monthBounds(year, month);
   const sixMonthsAgo = new Date(Date.UTC(year, month - 6, 1));
@@ -40,7 +40,7 @@ async function DashboardContent() {
   const limitDate = `${upcomingLimit.getUTCFullYear()}-${String(upcomingLimit.getUTCMonth() + 1).padStart(2, "0")}-${String(upcomingLimit.getUTCDate()).padStart(2, "0")}`;
 
   const [profileResult, transactions, budgetResult, billResult] = await Promise.all([
-    supabase.from("profiles").select("display_name,currency").eq("id", user.id).maybeSingle(),
+    getProfile(user.id),
     listTransactions(supabase, user.id, { from: historyStart, to: current.end }),
     supabase.from("budgets").select("id,category,amount").eq("user_id", user.id).eq("month", month).eq("year", year),
     supabase.from("bills").select("id,name,amount,due_date,recurrence,last_paid_at")

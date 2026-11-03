@@ -4,7 +4,7 @@ import { Suspense, type ReactNode } from "react";
 import { Sidebar } from "@/components/sidebar";
 import { PageLoading } from "@/components/page-loading";
 import { getSupabaseConfig } from "@/lib/supabase/config";
-import { createClient } from "@/lib/supabase/server";
+import { getCurrentUser, getProfile } from "@/lib/supabase/server";
 
 export const instant = false;
 
@@ -30,11 +30,9 @@ async function DashboardSession({ children }: { children: ReactNode }) {
       </main>
     );
   }
-  const supabase = await createClient();
-  const { data: { user }, error } = await supabase.auth.getUser();
-  if (error || !user) redirect("/login");
-  const { data: profile, error: profileError } = await supabase.from("profiles")
-    .select("display_name,currency").eq("id", user.id).maybeSingle();
+  const user = await getCurrentUser();
+  if (!user) redirect("/login");
+  const { data: profile, error: profileError } = await getProfile(user.id);
   if (profileError) throw new Error(`Could not load profile: ${profileError.message}`);
   return (
     <div className="dashboard-shell min-h-screen">

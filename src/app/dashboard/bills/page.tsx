@@ -10,7 +10,7 @@ import { ConfirmActionForm } from "@/components/confirm-action-form";
 import { CATEGORIES, daysUntil, formatMoney } from "@/lib/finance";
 import { formatPakistanDate, formatPakistanTimestampDate, pakistanDateParts } from "@/lib/dates";
 import type { Recurrence } from "@/lib/database.types";
-import { createClient } from "@/lib/supabase/server";
+import { createClient, getCurrentUser, getProfile } from "@/lib/supabase/server";
 
 type SearchParams = Promise<{ error?: string; success?: string }>;
 const recurrenceLabels: Record<Recurrence, string> = {
@@ -28,11 +28,11 @@ async function BillsContent({ searchParams }: { searchParams: SearchParams }) {
   await connection();
   const params = await searchParams;
   const supabase = await createClient();
-  const { data: { user }, error: authError } = await supabase.auth.getUser();
-  if (authError || !user) throw new Error("Your session expired. Please sign in again.");
+  const user = await getCurrentUser();
+  if (!user) throw new Error("Your session expired. Please sign in again.");
   const [billResult, profileResult] = await Promise.all([
     supabase.from("bills").select("*").eq("user_id", user.id).order("due_date"),
-    supabase.from("profiles").select("currency").eq("id", user.id).maybeSingle(),
+    getProfile(user.id),
   ]);
   if (billResult.error) throw new Error(`Could not load bills: ${billResult.error.message}`);
   if (profileResult.error) throw new Error(`Could not load preferences: ${profileResult.error.message}`);

@@ -11,7 +11,7 @@ import { ConfirmActionForm } from "@/components/confirm-action-form";
 import { TransactionEntryForm } from "@/components/transaction-entry-form";
 import { CATEGORIES, formatMoney } from "@/lib/finance";
 import { formatPakistanDate, pakistanDateParts } from "@/lib/dates";
-import { createClient } from "@/lib/supabase/server";
+import { createClient, getCurrentUser, getProfile } from "@/lib/supabase/server";
 
 type SearchParams = Promise<{
   q?: string; type?: string; category?: string; from?: string; to?: string;
@@ -32,10 +32,9 @@ async function TransactionsContent({ searchParams }: { searchParams: SearchParam
   await connection();
   const params = await searchParams;
   const supabase = await createClient();
-  const { data: { user }, error: authError } = await supabase.auth.getUser();
-  if (authError || !user) throw new Error("Your session expired. Please sign in again.");
-  const { data: profile, error: profileError } = await supabase.from("profiles").select("currency").eq("id", user.id).maybeSingle();
-  if (profileError) throw new Error(`Could not load preferences: ${profileError.message}`);
+  const user = await getCurrentUser();
+  if (!user) throw new Error("Your session expired. Please sign in again.");
+  const profileRequest = getProfile(user.id);
   const type = params.type === "income" || params.type === "expense" ? params.type : undefined;
   const category = CATEGORIES.includes(params.category as typeof CATEGORIES[number]) ? params.category : undefined;
   const from = validDate(params.from);
@@ -69,17 +68,20 @@ async function TransactionsContent({ searchParams }: { searchParams: SearchParam
   }
   const transactions = data || [];
   const filtered = Boolean(type || category || from || to || safeSearch);
-  const signedReceipts = await Promise.all(transactions.map(async (item) => {
-    if (!item.receipt_path) return [item.id, null] as const;
-    const { data: signed, error: signedError } = await supabase.storage.from("receipts")
-      .createSignedUrl(item.receipt_path, 300);
-    if (signedError) {
-      console.error(`Could not create receipt link for ${item.id}:`, signedError.message);
-      return [item.id, null] as const;
+  // One storage request for every receipt on the page instead of one per receipt.
+  const receiptPaths = transactions.flatMap((item) => item.receipt_path ? [item.receipt_path] : []);
+  const urlByPath = new Map<string, string>();
+  if (receiptPaths.length) {
+    const { data: signed, error: signedError } = await supabase.storage.from("receipts").createSignedUrls(receiptPaths, 300);
+    if (signedError) console.error("Could not create receipt links:", signedError.message);
+    for (const item of signed || []) {
+      if (item.path && item.signedUrl && !item.error) urlByPath.set(item.path, item.signedUrl);
+      else if (item.error) console.error(`Could not create receipt link for ${item.path}:`, item.error);
     }
-    return [item.id, signed.signedUrl] as const;
-  }));
-  const receiptUrls = new Map(signedReceipts);
+  }
+  const receiptUrls = new Map(transactions.map((item) => [item.id, item.receipt_path ? urlByPath.get(item.receipt_path) ?? null : null]));
+  const { data: profile, error: profileError } = await profileRequest;
+  if (profileError) throw new Error(`Could not load preferences: ${profileError.message}`);
   const currency = profile?.currency || "PKR";
   const defaultDate = pakistanDateParts().date;
   const pageQuery = (nextPage: number) => {
