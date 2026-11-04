@@ -47,6 +47,8 @@ yarn-error.log*
 
 # local tooling
 /.taste-skill
+# Supabase CLI link and version cache
+/supabase/.temp/
 
 # typescript
 *.tsbuildinfo
