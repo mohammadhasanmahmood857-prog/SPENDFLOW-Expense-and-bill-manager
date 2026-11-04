@@ -13,6 +13,7 @@ export const metadata: Metadata = {
   openGraph: {
     type: "website",
     siteName: "SpendFlow",
+    url: "/",
     title: "SpendFlow — your money, in focus",
     description: "A thoughtful place to track everyday spending, budgets, and bills.",
   },

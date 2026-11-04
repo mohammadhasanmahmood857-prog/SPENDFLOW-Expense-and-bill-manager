@@ -14,6 +14,7 @@ export const metadata: Metadata = {
   title: "Create your account",
   description: "Create a free SpendFlow account to track spending, budgets, and bills in one place.",
   alternates: { canonical: "/signup" },
+  openGraph: { title: "Create your account · SpendFlow", description: "Create a free SpendFlow account to track spending, budgets, and bills in one place.", url: "/signup" },
 };
 
 export default function SignupPage({ searchParams }: { searchParams: Promise<{ error?: string; next?: string }> }) {

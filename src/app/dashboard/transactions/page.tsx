@@ -8,6 +8,7 @@ import { PageHeading } from "@/components/page-heading";
 import { PageLoading } from "@/components/page-loading";
 import { CloseDetailsButton } from "@/components/close-details-button";
 import { ConfirmActionForm } from "@/components/confirm-action-form";
+import { SubmitButton } from "@/components/submit-button";
 import { TransactionEntryForm } from "@/components/transaction-entry-form";
 import { CATEGORIES, formatMoney } from "@/lib/finance";
 import { formatPakistanDate, pakistanDateParts } from "@/lib/dates";
@@ -120,24 +121,27 @@ async function TransactionsContent({ searchParams }: { searchParams: SearchParam
           <div className="border-t border-[var(--line)] px-5 py-12 text-center"><p className="text-sm font-semibold">{filtered ? "No transactions match these filters." : "Your transaction history starts here."}</p><p className="mt-2 text-sm text-[var(--muted)]">{filtered ? "Try changing the search or filters." : "Add your first income or expense above."}</p></div>
         ) : (
           <div className="table-wrap">
-            {/* Phones show three columns; category, date and receipt move under the description. */}
-            <table className="data-table sm:min-w-[760px]">
-              <thead><tr><th>Transaction</th><th className="hidden sm:table-cell">Category</th><th className="hidden sm:table-cell">Date</th><th className="hidden sm:table-cell">Receipt</th><th className="text-right">Amount</th><th className="text-right">Manage</th></tr></thead>
+            {/* Columns that don't fit move under the description instead of scrolling sideways, so Edit
+                stays on screen: amount and date below sm, category below lg, receipt below xl. */}
+            <table className="data-table">
+              <thead><tr><th>Transaction</th><th className="hidden lg:table-cell">Category</th><th className="hidden sm:table-cell">Date</th><th className="hidden xl:table-cell">Receipt</th><th className="hidden text-right sm:table-cell">Amount</th><th className="text-right">Manage</th></tr></thead>
               <tbody>{transactions.map((item) => (
                 <tr key={item.id}>
                   <td>
                     <span className="block break-words font-semibold">{item.description || item.category}</span>
-                    <span className="mt-1 block text-xs capitalize text-[var(--muted)]">{item.type}<span className="normal-case sm:hidden"> · {item.category} · {formatPakistanDate(item.transaction_date)}</span></span>
-                    {receiptUrls.get(item.id) && <a href={receiptUrls.get(item.id)!} target="_blank" rel="noreferrer" className="inline-flex min-h-10 items-center text-xs font-medium text-[var(--ink-soft)] underline underline-offset-2 sm:hidden">View receipt</a>}
+                    <span className="mt-1 block text-xs capitalize text-[var(--muted)]">{item.type}<span className="normal-case lg:hidden"> · {item.category}</span><span className="normal-case sm:hidden"> · {formatPakistanDate(item.transaction_date)}</span></span>
+                    <span className="mt-1 block whitespace-nowrap font-medium sm:hidden">{item.type === "income" ? "+" : "−"}{formatMoney(Number(item.amount), currency)}</span>
+                    {receiptUrls.get(item.id) && <a href={receiptUrls.get(item.id)!} target="_blank" rel="noreferrer" className="inline-flex min-h-10 items-center text-xs font-medium text-[var(--ink-soft)] underline underline-offset-2 xl:hidden">View receipt</a>}
                   </td>
-                  <td className="hidden sm:table-cell"><span className="badge badge-blue">{item.category}</span></td>
+                  <td className="hidden lg:table-cell"><span className="badge badge-blue">{item.category}</span></td>
                   <td className="hidden whitespace-nowrap text-[var(--ink-soft)] sm:table-cell">{formatPakistanDate(item.transaction_date)}</td>
-                  <td className="hidden sm:table-cell">{receiptUrls.get(item.id) ? <a href={receiptUrls.get(item.id)!} target="_blank" rel="noreferrer" className="inline-flex min-h-10 items-center text-sm font-medium text-[var(--ink-soft)] underline underline-offset-2">View receipt</a> : <span className="text-sm text-[var(--muted)]">—</span>}</td>
-                  <td className="whitespace-nowrap text-right font-medium">{item.type === "income" ? "+" : "−"}{formatMoney(Number(item.amount), currency)}</td>
+                  <td className="hidden xl:table-cell">{receiptUrls.get(item.id) ? <a href={receiptUrls.get(item.id)!} target="_blank" rel="noreferrer" className="inline-flex min-h-10 items-center text-sm font-medium text-[var(--ink-soft)] underline underline-offset-2">View receipt</a> : <span className="text-sm text-[var(--muted)]">—</span>}</td>
+                  <td className="hidden whitespace-nowrap text-right font-medium sm:table-cell">{item.type === "income" ? "+" : "−"}{formatMoney(Number(item.amount), currency)}</td>
                   <td className="text-right">
-                    <details className="relative inline-block text-left">
-                      <summary className="button button-small button-secondary cursor-pointer list-none">Edit</summary>
+                    <details className="relative inline-block text-left" name="edit-menu">
+                      <summary className="button button-small button-secondary cursor-pointer list-none" aria-label={`Edit ${item.description || item.category}`}>Edit</summary>
                       <div className="edit-sheet">
+                        <p className="mb-3 break-words text-sm font-bold">Edit: {item.description || item.category}</p>
                         <form action={saveTransaction} className="grid gap-3">
                           <input type="hidden" name="id" value={item.id} />
                           <label className="label">Amount<input className="field" name="amount" type="number" min="0.01" step="0.01" defaultValue={item.amount} required /></label>
@@ -145,7 +149,7 @@ async function TransactionsContent({ searchParams }: { searchParams: SearchParam
                           <label className="label">Category<select className="field" name="category" defaultValue={item.category}>{CATEGORIES.map((value) => <option key={value}>{value}</option>)}</select></label>
                           <label className="label">Date<input className="field" name="transaction_date" type="date" defaultValue={item.transaction_date} required /></label>
                           <label className="label">Description<input className="field" name="description" maxLength={160} defaultValue={item.description} /></label>
-                          <button className="button w-full" type="submit">Save changes</button>
+                          <SubmitButton className="w-full" pendingLabel="Saving…">Save changes</SubmitButton>
                         </form>
                         <ConfirmActionForm action={deleteTransaction} message="Delete this transaction? This cannot be undone." className="mt-2"><input type="hidden" name="id" value={item.id} /><button className="button button-danger w-full" type="submit">Delete transaction</button></ConfirmActionForm>
                         <CloseDetailsButton />

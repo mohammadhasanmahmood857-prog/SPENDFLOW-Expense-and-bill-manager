@@ -7,6 +7,7 @@ import { PageHeading } from "@/components/page-heading";
 import { PageLoading } from "@/components/page-loading";
 import { CloseDetailsButton } from "@/components/close-details-button";
 import { ConfirmActionForm } from "@/components/confirm-action-form";
+import { SubmitButton } from "@/components/submit-button";
 import { CATEGORIES, daysUntil, formatMoney } from "@/lib/finance";
 import { formatPakistanDate, formatPakistanTimestampDate, pakistanDateParts } from "@/lib/dates";
 import type { Recurrence } from "@/lib/database.types";
@@ -62,7 +63,7 @@ async function BillsContent({ searchParams }: { searchParams: SearchParams }) {
           <label className="label">Category<select className="field" name="category" defaultValue="Home">{CATEGORIES.map((category) => <option key={category}>{category}</option>)}</select></label>
           <label className="label">Next due date<input className="field" name="due_date" type="date" defaultValue={todayDate} required /></label>
           <label className="label">Repeats<select className="field" name="recurrence" defaultValue="monthly">{recurrenceOptions.map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select></label>
-          <button className="button" type="submit">Save bill</button>
+          <SubmitButton pendingLabel="Saving…">Save bill</SubmitButton>
         </form>
       </section>
       {overdue.length > 0 && (
@@ -115,11 +116,13 @@ function BillCard({
                 : <span className="badge badge-blue">Due in {remaining} days</span>}
         <div className="flex gap-2">
           {!paid && !paidToday && (remaining < 0 && bill.recurrence !== "once"
-            ? <ConfirmActionForm action={markBillPaid} message={`Record a payment for every missed due date of "${bill.name}" up to today?`}><input type="hidden" name="id" value={bill.id} /><input type="hidden" name="expected_due_date" value={bill.due_date} /><button className="button button-small" type="submit">Mark paid</button></ConfirmActionForm>
-            : <form action={markBillPaid}><input type="hidden" name="id" value={bill.id} /><input type="hidden" name="expected_due_date" value={bill.due_date} /><button className="button button-small" type="submit">Mark paid</button></form>)}
-          <details className="relative">
-            <summary className="button button-small button-secondary cursor-pointer list-none">Edit</summary>
+            ? <ConfirmActionForm action={markBillPaid} message={`Record a payment for every missed due date of "${bill.name}" up to today?`}><input type="hidden" name="id" value={bill.id} /><input type="hidden" name="expected_due_date" value={bill.due_date} /><SubmitButton className="button-small" pendingLabel="Recording…">Mark paid</SubmitButton></ConfirmActionForm>
+            : <form action={markBillPaid}><input type="hidden" name="id" value={bill.id} /><input type="hidden" name="expected_due_date" value={bill.due_date} /><SubmitButton className="button-small" pendingLabel="Recording…">Mark paid</SubmitButton></form>)}
+          {/* Same name on every edit menu: opening one closes the others, so fixed panels never stack. */}
+          <details className="relative" name="edit-menu">
+            <summary className="button button-small button-secondary cursor-pointer list-none" aria-label={`Edit ${bill.name}`}>Edit</summary>
             <div className="edit-sheet">
+              <p className="mb-3 break-words text-sm font-bold">Edit: {bill.name}</p>
               <form action={saveBill} className="grid gap-3">
                 <input type="hidden" name="id" value={bill.id} />
                 <label className="label">Name<input className="field" name="name" defaultValue={bill.name} maxLength={100} required /></label>
@@ -127,7 +130,7 @@ function BillCard({
                 <label className="label">Category<select className="field" name="category" defaultValue={bill.category}>{CATEGORIES.map((category) => <option key={category}>{category}</option>)}</select></label>
                 <label className="label">Due date<input className="field" name="due_date" type="date" defaultValue={bill.due_date} required /></label>
                 <label className="label">Repeats<select className="field" name="recurrence" defaultValue={bill.recurrence}>{Object.entries(recurrenceLabels).map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select></label>
-                <button className="button" type="submit">Save changes</button>
+                <SubmitButton pendingLabel="Saving…">Save changes</SubmitButton>
               </form>
               <ConfirmActionForm action={deleteBill} message={`Delete "${bill.name}"? This will keep any transaction already recorded for it.`} className="mt-2"><input type="hidden" name="id" value={bill.id} /><button className="button button-danger w-full" type="submit">Delete bill</button></ConfirmActionForm>
               <CloseDetailsButton />

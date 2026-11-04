@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { saveTransaction } from "@/app/actions";
+import { SubmitButton } from "@/components/submit-button";
 import { CATEGORIES } from "@/lib/finance";
 import { createClient } from "@/lib/supabase/browser";
 
@@ -17,7 +18,6 @@ export function TransactionEntryForm({ defaultDate }: { defaultDate: string }) {
   const [error, setError] = useState("");
   const [ocrText, setOcrText] = useState("");
   const [ocrStatus, setOcrStatus] = useState("");
-  const [pending, setPending] = useState(false);
 
   async function readReceipt() {
     if (!receipt || !receipt.type.startsWith("image/")) {
@@ -42,12 +42,10 @@ export function TransactionEntryForm({ defaultDate }: { defaultDate: string }) {
 
   async function submit(formData: FormData) {
     setError("");
-    setPending(true);
     if (receipt) {
       const extension = receiptExtensions[receipt.type];
       if (!extension || receipt.size > 5 * 1024 * 1024) {
         setError("Choose a JPG, PNG, WebP, or PDF file under 5 MB.");
-        setPending(false);
         return;
       }
       let path: string;
@@ -56,8 +54,7 @@ export function TransactionEntryForm({ defaultDate }: { defaultDate: string }) {
         const { data: { user }, error: authError } = await supabase.auth.getUser();
         if (authError || !user) {
           setError("Your session expired. Sign in again before uploading a receipt.");
-          setPending(false);
-          return;
+            return;
         }
         path = `${user.id}/${crypto.randomUUID()}.${extension}`;
         const { error: uploadError } = await supabase.storage.from("receipts").upload(path, receipt, {
@@ -66,22 +63,16 @@ export function TransactionEntryForm({ defaultDate }: { defaultDate: string }) {
         });
         if (uploadError) {
           setError(`Receipt upload failed: ${uploadError.message}`);
-          setPending(false);
-          return;
+            return;
         }
       } catch (reason) {
         setError(reason instanceof Error ? reason.message : "Could not upload this receipt.");
-        setPending(false);
         return;
       }
       formData.delete("receipt");
       formData.set("receipt_path", path);
     }
-    try {
-      await saveTransaction(formData);
-    } finally {
-      setPending(false);
-    }
+    await saveTransaction(formData);
   }
 
   return (
@@ -94,13 +85,13 @@ export function TransactionEntryForm({ defaultDate }: { defaultDate: string }) {
       <div className="grid gap-2 lg:col-span-2">
         <label className="label">Receipt <span className="text-xs font-normal text-[var(--muted)]">Optional · image or PDF, up to 5 MB</span><input className="field py-2" name="receipt" type="file" accept="image/jpeg,image/png,image/webp,application/pdf" onChange={(event) => { setReceipt(event.target.files?.[0] || null); setOcrText(""); setOcrStatus(""); }} /></label>
         <div className="flex flex-wrap items-center gap-3">
-          <button className="min-h-10 text-sm font-medium underline underline-offset-2" type="button" disabled={!receipt || pending || ocrStatus === "Reading receipt text…"} onClick={readReceipt}>Read receipt text</button>
+          <button className="min-h-10 text-sm font-medium underline underline-offset-2" type="button" disabled={!receipt || ocrStatus === "Reading receipt text…"} onClick={readReceipt}>Read receipt text</button>
           <span className="text-sm text-[var(--muted)]" aria-live="polite">{ocrStatus}</span>
         </div>
         {ocrText && <details className="text-sm"><summary className="cursor-pointer">Review recognized text</summary><pre className="mt-2 max-h-40 overflow-auto whitespace-pre-wrap rounded-md bg-[var(--surface-muted)] p-3 font-sans text-xs">{ocrText}</pre></details>}
         {error && <p className="text-sm text-[var(--danger)]" role="alert">{error}</p>}
       </div>
-      <div className="flex items-end"><button className="button w-full" type="submit" disabled={pending}>{pending ? "Saving…" : "Save transaction"}</button></div>
+      <div className="flex items-end"><SubmitButton className="w-full" pendingLabel="Saving…">Save transaction</SubmitButton></div>
     </form>
   );
 }

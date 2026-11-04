@@ -12,6 +12,7 @@ export const metadata: Metadata = {
   title: "Log in",
   description: "Sign in to SpendFlow to see your spending, budgets, and bills.",
   alternates: { canonical: "/login" },
+  openGraph: { title: "Log in · SpendFlow", description: "Sign in to SpendFlow to see your spending, budgets, and bills.", url: "/login" },
 };
 
 export default function LoginPage({

@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { BarChart3, CreditCard, FileText, LayoutDashboard, Menu, Settings2, X } from "lucide-react";
 import { signOut } from "@/app/actions";
 import { Brand } from "@/components/brand";
@@ -17,11 +17,23 @@ const links = [
 export function Sidebar({ name, email }: { name: string; email: string }) {
   const [open, setOpen] = useState(false);
   const pathname = usePathname();
+  const toggleRef = useRef<HTMLButtonElement>(null);
+  const drawerRef = useRef<HTMLElement>(null);
   useEffect(() => {
     if (!open) return;
     const closeOnEscape = (event: KeyboardEvent) => { if (event.key === "Escape") setOpen(false); };
     window.addEventListener("keydown", closeOnEscape);
-    return () => window.removeEventListener("keydown", closeOnEscape);
+    // While the phone drawer is open, move focus into it and make the page behind it unreachable.
+    const main = document.querySelector("main");
+    if (main) main.inert = true;
+    drawerRef.current?.querySelector<HTMLElement>("a, button")?.focus();
+    const drawer = drawerRef.current;
+    const toggle = toggleRef.current;
+    return () => {
+      window.removeEventListener("keydown", closeOnEscape);
+      if (main) main.inert = false;
+      if (drawer?.contains(document.activeElement)) toggle?.focus();
+    };
   }, [open]);
   const navigation = (
     <>
@@ -59,12 +71,12 @@ export function Sidebar({ name, email }: { name: string; email: string }) {
   return (
     <>
       <header className="fixed inset-x-0 top-0 z-[60] flex h-14 items-center gap-3 border-b border-[var(--line)] bg-white px-4 lg:hidden">
-        <button className="-ml-1 grid size-10 place-items-center rounded-md text-[var(--ink-soft)] hover:bg-[var(--surface-muted)]" aria-label={open ? "Close menu" : "Open menu"}
+        <button ref={toggleRef} className="-ml-1 grid size-10 place-items-center rounded-md text-[var(--ink-soft)] hover:bg-[var(--surface-muted)]" aria-label={open ? "Close menu" : "Open menu"}
           aria-expanded={open} aria-controls="primary-navigation" onClick={() => setOpen(!open)}>{open ? <X size={18} /> : <Menu size={18} />}</button>
         <Brand />
       </header>
       {open && <button aria-label="Close navigation" className="fixed inset-0 z-40 bg-[var(--ink)]/35 lg:hidden" onClick={() => setOpen(false)} />}
-      <aside id="primary-navigation" className={`fixed inset-y-0 left-0 z-50 flex w-[248px] flex-col overflow-y-auto border-r pt-14 lg:pt-0 border-[var(--line)] bg-white transition-[transform,visibility] duration-200 lg:visible lg:translate-x-0 ${open ? "translate-x-0" : "invisible -translate-x-full"}`}>
+      <aside ref={drawerRef} id="primary-navigation" className={`fixed inset-y-0 left-0 z-50 flex w-[248px] flex-col overflow-y-auto border-r pt-14 lg:pt-0 border-[var(--line)] bg-white duration-200 lg:visible lg:translate-x-0 ${open ? "visible translate-x-0 transition-transform" : "invisible -translate-x-full transition-[transform,visibility]"}`}>
         {navigation}
       </aside>
     </>

@@ -167,7 +167,8 @@ textarea.field { min-height: 92px; resize: vertical; }
 /* "backwards", not "both": a transform kept after the animation would trap position:fixed
    children (phone edit sheets, notices) inside the page instead of the viewport. */
 .page-enter { animation: reveal .28s ease backwards; }
-/* Edit menus: a sheet under the phone header (outside any scrolling table), a dropdown on desktop. */
+/* Edit menus: a fixed sheet, never inside a scrolling table, so the last row's buttons stay reachable.
+   Phones: under the header, full width. Desktop: a panel at the top right of the content area. */
 .edit-sheet {
   position: fixed;
   inset: 72px 16px auto;
@@ -182,7 +183,7 @@ textarea.field { min-height: 92px; resize: vertical; }
   box-shadow: 0 12px 32px rgb(23 35 33 / 18%);
 }
 @media (min-width: 1024px) {
-  .edit-sheet { position: absolute; inset: 100% 0 auto auto; width: 360px; max-height: none; margin-top: 8px; }
+  .edit-sheet { inset: 24px 40px auto auto; width: 380px; max-height: calc(100dvh - 48px); }
 }
 }
 /* Deliberately unlayered: inside the dashboard these must override the logo's own utilities
