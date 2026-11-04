@@ -10,17 +10,21 @@ export async function updateSession(request: NextRequest) {
   if (!config) return NextResponse.next({ request });
 
   let response = NextResponse.next({ request });
+  // No-store headers sent with refreshed auth cookies, so a CDN never serves one user's session to another.
+  let cacheHeaders: Record<string, string> = {};
   const supabase = createServerClient<Database, "public">(config.url, config.key, {
     cookies: {
       getAll() {
         return request.cookies.getAll();
       },
-      setAll(cookiesToSet) {
+      setAll(cookiesToSet, headers) {
         cookiesToSet.forEach(({ name, value }) => request.cookies.set(name, value));
         response = NextResponse.next({ request });
         cookiesToSet.forEach(({ name, value, options }) =>
           response.cookies.set(name, value, options),
         );
+        cacheHeaders = { ...cacheHeaders, ...headers };
+        Object.entries(cacheHeaders).forEach(([key, value]) => response.headers.set(key, value));
       },
     },
   });
@@ -38,8 +42,9 @@ export async function updateSession(request: NextRequest) {
   // Signed-in visitors skip the sign-in pages. Done here so those pages ship no Supabase browser client.
   if (user && (pathname === "/login" || pathname === "/signup")) {
     const redirect = NextResponse.redirect(new URL(safeNextPath(request.nextUrl.searchParams.get("next")), request.url));
-    // Keep any session cookies refreshed above.
+    // Keep any session cookies refreshed above, with their no-store headers.
     response.cookies.getAll().forEach((cookie) => redirect.cookies.set(cookie));
+    Object.entries(cacheHeaders).forEach(([key, value]) => redirect.headers.set(key, value));
     return redirect;
   }
   return response;

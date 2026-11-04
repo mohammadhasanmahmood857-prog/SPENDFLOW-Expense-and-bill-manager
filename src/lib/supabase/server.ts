@@ -32,6 +32,9 @@ export async function createClient(): Promise<SupabaseClient<Database, "public">
       getAll() {
         return cookieStore.getAll();
       },
+      // The library's no-store cache headers (second argument) aren't applied here: next/headers can't set
+      // response headers, and these cookie writes only happen in server actions and route handlers, whose
+      // responses are dynamic and never CDN-cached. The proxy applies them to session refreshes.
       setAll(cookiesToSet) {
         try {
           cookiesToSet.forEach(({ name, value, options }) =>
