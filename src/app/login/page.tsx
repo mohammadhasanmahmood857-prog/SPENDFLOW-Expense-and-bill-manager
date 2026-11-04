@@ -1,7 +1,6 @@
 import type { Metadata } from "next";
 import { Suspense } from "react";
 import { connection } from "next/server";
-import { AuthPageRedirect } from "@/components/auth-page-redirect";
 import { AuthShell } from "@/components/auth-shell";
 import { Notice } from "@/components/notice";
 import { LoginForm } from "@/components/login-form";
@@ -36,26 +35,24 @@ async function LoginContent({
   const params = await searchParams;
   const next = safeNextPath(params.next);
   return (
-    <AuthPageRedirect enabled={Boolean(getSupabaseConfig())} next={next}>
-      <AuthShell
-        title="Small habits. A clearer picture."
-        tagline="Pick up where you left off. Your spending and plans stay yours."
-        footnote="SpendFlow keeps your personal finances private."
-      >
-        <h2 className="display text-3xl">Welcome back</h2>
-        <p className="mt-2 text-sm text-[#65716d]">Sign in to see your money in focus.</p>
-        <div className="mt-6">
-          <Notice message={params.error} />
-          <Notice message={params.notice} type="notice" />
-          {!getSupabaseConfig() && <Notice message="Authentication is not connected yet. Add your Supabase URL and anon key to .env.local, then restart the app." />}
-        </div>
-        <LoginForm
-          enabled={Boolean(getSupabaseConfig())}
-          next={next}
-          unverified={params.unverified === "1"}
-        />
-      </AuthShell>
-    </AuthPageRedirect>
+    <AuthShell
+      title="Small habits. A clearer picture."
+      tagline="Pick up where you left off. Your spending and plans stay yours."
+      footnote="SpendFlow keeps your personal finances private."
+    >
+      <h2 className="display text-3xl">Welcome back</h2>
+      <p className="mt-2 text-sm text-[#65716d]">Sign in to see your money in focus.</p>
+      <div className="mt-6">
+        <Notice message={params.error} />
+        <Notice message={params.notice} type="notice" />
+        {!getSupabaseConfig() && <Notice message="Authentication is not connected yet. Add your Supabase URL and anon key to .env.local, then restart the app." />}
+      </div>
+      <LoginForm
+        enabled={Boolean(getSupabaseConfig())}
+        next={next}
+        unverified={params.unverified === "1"}
+      />
+    </AuthShell>
   );
 }
 

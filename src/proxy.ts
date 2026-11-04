@@ -6,7 +6,10 @@ export function proxy(request: NextRequest) {
 }
 
 export const config = {
+  // /reset-password is left out on purpose: a recovery link signs the user in, and they must still see the form.
   matcher: [
     "/dashboard/:path*",
+    "/login",
+    "/signup",
   ],
 };
