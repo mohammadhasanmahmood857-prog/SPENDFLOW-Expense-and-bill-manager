@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { headers } from "next/headers";
+import { createClient as createSupabaseClient } from "@supabase/supabase-js";
 import { z } from "zod";
 import { CATEGORIES } from "@/lib/finance";
 import {
@@ -40,12 +41,15 @@ function messageUrl(path: string, message: string, type = "error") {
   return `${path}?${type}=${encodeURIComponent(message)}`;
 }
 
-async function getConfirmationRedirect(next: string) {
+async function getSiteOrigin() {
   const requestHeaders = await headers();
   const forwardedHost = requestHeaders.get("x-forwarded-host") || requestHeaders.get("host") || "localhost:3000";
-  const origin = process.env.NEXT_PUBLIC_SITE_URL
+  return process.env.NEXT_PUBLIC_SITE_URL
     || `${requestHeaders.get("x-forwarded-proto") || "http"}://${forwardedHost}`;
-  const emailRedirectTo = new URL("/auth/confirm", origin);
+}
+
+async function getConfirmationRedirect(next: string) {
+  const emailRedirectTo = new URL("/auth/confirm", await getSiteOrigin());
   emailRedirectTo.searchParams.set("next", next);
   return emailRedirectTo.toString();
 }
@@ -161,9 +165,18 @@ export async function requestPasswordReset(
   }
 
   try {
-    const supabase = await createClient();
-    const redirectTo = await getConfirmationRedirect("/reset-password");
-    const { error } = await supabase.auth.resetPasswordForEmail(email.data, { redirectTo });
+    // Reset links use the implicit flow on purpose. The PKCE flow ties the link to a code-verifier
+    // cookie in the browser that asked for it, so opening the email in a mail app, another browser
+    // or another device failed the code exchange and sent people back to "Forgot password" in a
+    // loop. An implicit link carries the recovery session itself; /auth/recovery turns it into the
+    // usual session cookies. It's still a one-time, expiring link, and the new password can only be
+    // set within 15 minutes of opening it (canChangePasswordFrom).
+    const config = getSupabaseConfig()!;
+    const recoveryClient = createSupabaseClient(config.url, config.key, {
+      auth: { flowType: "implicit", persistSession: false, autoRefreshToken: false, detectSessionInUrl: false },
+    });
+    const redirectTo = new URL("/auth/recovery", await getSiteOrigin()).toString();
+    const { error } = await recoveryClient.auth.resetPasswordForEmail(email.data, { redirectTo });
     if (error) {
       // Only rate limits are shown as-is; other details could hint at whether an account exists.
       const message = formatAuthError(error, "");
@@ -178,7 +191,7 @@ export async function requestPasswordReset(
 
   return {
     status: "success",
-    message: "If an account exists for this email, a reset link is on its way. Open it in this browser.",
+    message: "If an account exists for this email, a reset link is on its way. It works in any browser and expires after a while, so use the newest one.",
   };
 }
 
@@ -215,12 +228,12 @@ export async function updatePassword(
       expired: false,
     };
   }
-  // Anyone else holding a session for this account (another device, or whoever prompted the reset)
-  // is signed out; this browser stays signed in. Not fatal: the password itself has already changed.
-  const { error: revokeError } = await supabase.auth.signOut({ scope: "others" });
-  if (revokeError) console.error("Password updated, but other sessions could not be signed out:", revokeError.message);
+  // Every session for the account ends, including the recovery session in this browser, so the
+  // person signs in again with the new password. Not fatal: the password itself has already changed.
+  const { error: revokeError } = await supabase.auth.signOut({ scope: "global" });
+  if (revokeError) console.error("Password updated, but sessions could not be signed out:", revokeError.message);
   revalidatePath("/", "layout");
-  redirect(messageUrl("/dashboard/settings", "Your password has been updated.", "success"));
+  redirect(messageUrl("/login", "Your password has been updated. Sign in with your new password.", "notice"));
 }
 
 export async function signOut() {

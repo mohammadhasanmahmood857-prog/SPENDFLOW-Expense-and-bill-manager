@@ -48,7 +48,7 @@ async function ResetPasswordContent() {
           <p className="mt-2 text-sm leading-6 text-[#65716d]">
             {user
               ? `For your security, a new password can only be set within ${PASSWORD_CHANGE_WINDOW_SECONDS / 60} minutes of opening a reset link. Send yourself a new one.`
-              : "This reset link has expired, was already used, or was opened in a different browser from the one you requested it in."}
+              : "Open the reset link from your email to choose a new password. If it has expired or was already used, request a new one."}
           </p>
           <Link href="/forgot-password" className="button mt-6 w-full">Send a new reset link</Link>
         </>
