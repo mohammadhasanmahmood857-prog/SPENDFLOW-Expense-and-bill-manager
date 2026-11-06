@@ -190,6 +190,11 @@ textarea.field { min-height: 92px; resize: vertical; }
    (blue badge, 17px name) used on the public pages. */
 .dashboard-shell .brand-mark { width: 36px; height: 36px; border-radius: 6px; background: transparent; color: var(--ink); }
 .dashboard-shell .brand-name { font-size: 16px; letter-spacing: -.02em; }
+/* Unlayered for the same reason: on a phone held sideways the 64px headline filled the whole
+   first screen and pushed "Create your free account" below it. */
+@media (max-height: 500px) and (orientation: landscape) {
+  .hero-title { margin-top: 1rem; font-size: 40px; }
+}
 
 @keyframes reveal { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } }
 @media (prefers-reduced-motion: reduce) {

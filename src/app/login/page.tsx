@@ -6,12 +6,15 @@ import { Notice } from "@/components/notice";
 import { LoginForm } from "@/components/login-form";
 import { getSupabaseConfig } from "@/lib/supabase/config";
 import { safeNextPath } from "@/lib/auth";
+import { shareImage } from "@/lib/site";
 
 export const metadata: Metadata = {
   title: "Log in",
   description: "Sign in to SpendFlow to see your spending, budgets, and bills.",
   alternates: { canonical: "/login" },
-  openGraph: { title: "Log in · SpendFlow", description: "Sign in to SpendFlow to see your spending, budgets, and bills.", url: "/login" },
+  // A page's own openGraph replaces the inherited one, so the share image is listed again here.
+  openGraph: { title: "Log in · SpendFlow", description: "Sign in to SpendFlow to see your spending, budgets, and bills.", url: "/login", images: [shareImage] },
+  twitter: { card: "summary_large_image" },
 };
 
 export default function LoginPage({

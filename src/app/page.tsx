@@ -27,7 +27,7 @@ export default function Home() {
           <span className="inline-flex items-center gap-2 rounded-full border border-[#e5eae7] bg-white px-3 py-1.5 text-xs font-semibold text-[#53605c]">
             <span className="size-2 rounded-full bg-[#1c8b69]" />A clearer view of everyday money
           </span>
-          <h1 className="display mt-7 max-w-[620px] text-[50px] leading-[1.05] sm:text-[64px] lg:text-[72px]">
+          <h1 className="hero-title display mt-7 max-w-[620px] text-[50px] leading-[1.05] sm:text-[64px] lg:text-[72px]">
             Know where it went. <span className="text-[#265be8]">Choose what comes next.</span>
           </h1>
           <p className="mt-6 max-w-[490px] text-base leading-7 text-[#65716d]">
