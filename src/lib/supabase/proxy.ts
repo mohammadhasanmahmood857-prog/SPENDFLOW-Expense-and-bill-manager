@@ -32,20 +32,23 @@ export async function updateSession(request: NextRequest) {
   const { data: { user }, error } = await supabase.auth.getUser();
   // A signed-out visitor simply has no session; only real failures are worth logging.
   if (error && !isAuthSessionMissingError(error)) console.error("Could not refresh Supabase session:", error.message);
+  // Redirects carry whatever setAll wrote (refreshed or cleared session cookies) and its no-store headers.
+  function redirectWithSession(url: URL) {
+    const redirect = NextResponse.redirect(url);
+    response.cookies.getAll().forEach((cookie) => redirect.cookies.set(cookie));
+    Object.entries(cacheHeaders).forEach(([key, value]) => redirect.headers.set(key, value));
+    return redirect;
+  }
   const { pathname } = request.nextUrl;
   if (!user && pathname.startsWith("/dashboard")) {
     const url = request.nextUrl.clone();
     url.pathname = "/login";
     url.searchParams.set("next", `${pathname}${request.nextUrl.search}`);
-    return NextResponse.redirect(url);
+    return redirectWithSession(url);
   }
   // Signed-in visitors skip the sign-in pages. Done here so those pages ship no Supabase browser client.
   if (user && (pathname === "/login" || pathname === "/signup")) {
-    const redirect = NextResponse.redirect(new URL(safeNextPath(request.nextUrl.searchParams.get("next")), request.url));
-    // Keep any session cookies refreshed above, with their no-store headers.
-    response.cookies.getAll().forEach((cookie) => redirect.cookies.set(cookie));
-    Object.entries(cacheHeaders).forEach(([key, value]) => redirect.headers.set(key, value));
-    return redirect;
+    return redirectWithSession(new URL(safeNextPath(request.nextUrl.searchParams.get("next")), request.url));
   }
   return response;
 }
