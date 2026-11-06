@@ -22,7 +22,7 @@ export default function Home() {
           <Link href="/signup" className="button button-small whitespace-nowrap sm:min-h-[42px] sm:px-4">Get started <ChevronRight size={15} /></Link>
         </nav>
       </header>
-      <section className="mx-auto grid max-w-[1240px] items-center gap-12 px-5 pb-20 pt-10 sm:px-8 md:grid-cols-[1.05fr_.95fr] md:gap-16 md:pb-28 md:pt-20">
+      <section className="hero-section mx-auto grid max-w-[1240px] items-center gap-12 px-5 pb-20 pt-10 sm:px-8 md:grid-cols-[1.05fr_.95fr] md:gap-16 md:pb-28 md:pt-20">
         <div className="page-enter">
           <span className="inline-flex items-center gap-2 rounded-full border border-[#e5eae7] bg-white px-3 py-1.5 text-xs font-semibold text-[#53605c]">
             <span className="size-2 rounded-full bg-[#1c8b69]" />A clearer view of everyday money
@@ -30,10 +30,10 @@ export default function Home() {
           <h1 className="hero-title display mt-7 max-w-[620px] text-[50px] leading-[1.05] sm:text-[64px] lg:text-[72px]">
             Know where it went. <span className="text-[#265be8]">Choose what comes next.</span>
           </h1>
-          <p className="mt-6 max-w-[490px] text-base leading-7 text-[#65716d]">
+          <p className="hero-copy mt-6 max-w-[490px] text-base leading-7 text-[#65716d]">
             SpendFlow brings your spending, budgets, and bills together—so the small decisions feel a little less uncertain.
           </p>
-          <div className="mt-8 flex flex-wrap items-center gap-3">
+          <div className="hero-actions mt-8 flex flex-wrap items-center gap-3">
             <Button asChild className="min-h-12 px-5"><Link href="/signup">Create your free account <ChevronRight size={16} /></Link></Button>
             <span className="flex items-center gap-1.5 text-xs text-[#65716d]"><Check size={14} className="text-[#1c8b69]" />Private by design</span>
           </div>
