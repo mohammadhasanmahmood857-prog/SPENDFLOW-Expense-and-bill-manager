@@ -4,6 +4,7 @@ import { Suspense } from "react";
 import { connection } from "next/server";
 import { AuthShell } from "@/components/auth-shell";
 import { ResetPasswordForm } from "@/components/reset-password-form";
+import { canChangePasswordFrom, PASSWORD_CHANGE_WINDOW_SECONDS } from "@/lib/auth";
 import { getSupabaseConfig } from "@/lib/supabase/config";
 import { createClient } from "@/lib/supabase/server";
 
@@ -23,10 +24,12 @@ export default function ResetPasswordPage() {
 
 async function ResetPasswordContent() {
   await connection();
-  // The reset link signs the user in through /auth/confirm; without that session there is nothing to update.
-  const user = getSupabaseConfig()
-    ? (await (await createClient()).auth.getUser()).data.user
-    : null;
+  // The reset link signs the user in through /auth/confirm. Only a session that link created in the last
+  // few minutes may set a new password; an ordinary signed-in session gets the "request a link" message.
+  const supabase = getSupabaseConfig() ? await createClient() : null;
+  const user = supabase ? (await supabase.auth.getUser()).data.user : null;
+  const claims = user && supabase ? (await supabase.auth.getClaims()).data?.claims : null;
+  const allowed = Boolean(user && canChangePasswordFrom(claims?.amr));
 
   return (
     <AuthShell
@@ -35,7 +38,7 @@ async function ResetPasswordContent() {
       footnote="SpendFlow keeps your personal finances private."
     >
       <h2 className="display text-3xl">Choose a new password</h2>
-      {user ? (
+      {user && allowed ? (
         <>
           <p className="mt-2 mb-6 break-words text-sm text-[#65716d]">For {user.email}</p>
           <ResetPasswordForm />
@@ -43,8 +46,9 @@ async function ResetPasswordContent() {
       ) : (
         <>
           <p className="mt-2 text-sm leading-6 text-[#65716d]">
-            This reset link has expired, was already used, or was opened in a different browser from the one
-            you requested it in.
+            {user
+              ? `For your security, a new password can only be set within ${PASSWORD_CHANGE_WINDOW_SECONDS / 60} minutes of opening a reset link. Send yourself a new one.`
+              : "This reset link has expired, was already used, or was opened in a different browser from the one you requested it in."}
           </p>
           <Link href="/forgot-password" className="button mt-6 w-full">Send a new reset link</Link>
         </>

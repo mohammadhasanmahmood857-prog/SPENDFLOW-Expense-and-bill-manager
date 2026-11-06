@@ -5,7 +5,13 @@ import { redirect } from "next/navigation";
 import { headers } from "next/headers";
 import { z } from "zod";
 import { CATEGORIES } from "@/lib/finance";
-import { safeNextPath } from "@/lib/auth";
+import {
+  authErrorMessage as formatAuthError,
+  canChangePasswordFrom,
+  newPasswordProblem,
+  safeNextPath,
+  signInErrorMessage,
+} from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
 import { getSupabaseConfig } from "@/lib/supabase/config";
 
@@ -32,24 +38,6 @@ const billSchema = z.object({
 
 function messageUrl(path: string, message: string, type = "error") {
   return `${path}?${type}=${encodeURIComponent(message)}`;
-}
-
-function formatAuthError(error: { code?: string; message?: string } | null, fallback: string) {
-  const message = error?.message?.trim() || "";
-  const lower = message.toLowerCase();
-
-  if (
-    error?.code === "over_email_send_rate_limit"
-    || (lower.includes("rate limit") && lower.includes("email"))
-  ) {
-    return "Too many email attempts. Please wait a moment and try again.";
-  }
-
-  if (error?.code === "over_request_rate_limit" || lower.includes("rate limit")) {
-    return "Too many attempts. Please wait a moment and try again.";
-  }
-
-  return message || fallback;
 }
 
 async function getConfirmationRedirect(next: string) {
@@ -83,18 +71,7 @@ export async function signIn(_previousState: SignInState, formData: FormData): P
   }
   const supabase = await createClient();
   const { error } = await supabase.auth.signInWithPassword({ email: email.data, password: password.data });
-  if (error) {
-    const unverified = error.code === "email_not_confirmed"
-      || error.message.toLowerCase().includes("email not confirmed");
-    return {
-      message: unverified
-        ? "Please verify your email before logging in."
-        : error.code === "invalid_credentials"
-          ? "Incorrect email or password."
-          : formatAuthError(error, "Check your email and password."),
-      unverified,
-    };
-  }
+  if (error) return signInErrorMessage(error);
   revalidatePath("/", "layout");
   redirect(next);
 }
@@ -102,16 +79,20 @@ export async function signIn(_previousState: SignInState, formData: FormData): P
 export async function signUp(formData: FormData) {
   const name = z.string().trim().min(1).max(80).safeParse(formData.get("display_name"));
   const email = z.string().email().safeParse(formData.get("email"));
-  const password = z.string().min(8).safeParse(formData.get("password"));
+  const password = formData.get("password");
   const next = safeNextPath(formData.get("next"));
-  if (!name.success || !email.success || !password.success) {
-    redirect(`${messageUrl("/signup", "Use a name, valid email, and password with at least 8 characters.")}&next=${encodeURIComponent(next)}`);
+  if (!name.success || !email.success) {
+    redirect(`${messageUrl("/signup", "Enter your name and a valid email address.")}&next=${encodeURIComponent(next)}`);
+  }
+  const passwordProblem = newPasswordProblem(password, formData.get("confirm_password"));
+  if (passwordProblem || typeof password !== "string") {
+    redirect(`${messageUrl("/signup", passwordProblem || "Enter a password.")}&next=${encodeURIComponent(next)}`);
   }
   const supabase = await createClient();
   const emailRedirectTo = await getConfirmationRedirect(next);
   const { data, error } = await supabase.auth.signUp({
     email: email.data,
-    password: password.data,
+    password,
     options: { data: { display_name: name.data }, emailRedirectTo },
   });
   if (error) redirect(`${messageUrl("/signup", formatAuthError(error, "We could not create your account right now."))}&next=${encodeURIComponent(next)}`);
@@ -210,12 +191,10 @@ export async function updatePassword(
   _previousState: UpdatePasswordState,
   formData: FormData,
 ): Promise<UpdatePasswordState> {
-  const password = z.string().min(8).safeParse(formData.get("password"));
-  if (!password.success) {
-    return { message: "Use a password with at least 8 characters.", expired: false };
-  }
-  if (formData.get("confirm_password") !== password.data) {
-    return { message: "The two passwords do not match.", expired: false };
+  const password = formData.get("password");
+  const passwordProblem = newPasswordProblem(password, formData.get("confirm_password"));
+  if (passwordProblem || typeof password !== "string") {
+    return { message: passwordProblem || "Enter a new password.", expired: false };
   }
 
   const supabase = await createClient();
@@ -223,16 +202,23 @@ export async function updatePassword(
   if (!user) {
     return { message: "Your reset link has expired. Request a new one.", expired: true };
   }
+  // Only a session created by a reset link in the last few minutes may set a new password (see canChangePasswordFrom).
+  const { data: claimsData } = await supabase.auth.getClaims();
+  if (!canChangePasswordFrom(claimsData?.claims?.amr)) {
+    return { message: "For your security, open a new reset link and set your password within 15 minutes.", expired: true };
+  }
 
-  const { error } = await supabase.auth.updateUser({ password: password.data });
+  const { error } = await supabase.auth.updateUser({ password });
   if (error) {
     return {
-      message: error.code === "same_password"
-        ? "Choose a password that is different from your current one."
-        : formatAuthError(error, "We could not update your password. Please try again."),
+      message: formatAuthError(error, "We could not update your password. Please try again."),
       expired: false,
     };
   }
+  // Anyone else holding a session for this account (another device, or whoever prompted the reset)
+  // is signed out; this browser stays signed in. Not fatal: the password itself has already changed.
+  const { error: revokeError } = await supabase.auth.signOut({ scope: "others" });
+  if (revokeError) console.error("Password updated, but other sessions could not be signed out:", revokeError.message);
   revalidatePath("/", "layout");
   redirect(messageUrl("/dashboard/settings", "Your password has been updated.", "success"));
 }
