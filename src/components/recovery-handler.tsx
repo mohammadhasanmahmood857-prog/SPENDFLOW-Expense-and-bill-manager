@@ -15,9 +15,13 @@ export function RecoveryHandler() {
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.hash.slice(1));
+    const reason = new URLSearchParams(window.location.search).get("reason");
     window.history.replaceState(null, "", window.location.pathname);
     const fail = (message = expiredMessage) => setState({ status: "error", message });
 
+    if (reason === "old-link") {
+      return fail("This reset link is from an older email and can no longer be used. Request a new link below and open the newest email: new links work in any browser.");
+    }
     if (params.get("error") || params.get("error_code")) return fail();
     const accessToken = params.get("access_token");
     const refreshToken = params.get("refresh_token");

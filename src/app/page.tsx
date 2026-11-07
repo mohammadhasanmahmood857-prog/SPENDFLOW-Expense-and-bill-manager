@@ -2,7 +2,6 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { ArrowDownRight, ArrowUpRight, Check, ChevronRight, CircleDollarSign, FileText, WalletCards } from "lucide-react";
 import { Brand } from "@/components/brand";
-import { RecoveryHashForwarder } from "@/components/recovery-hash-forwarder";
 import { Button } from "@/components/ui/button";
 
 export const metadata: Metadata = { alternates: { canonical: "/" } };
@@ -16,7 +15,6 @@ const features = [
 export default function Home() {
   return (
     <main className="min-h-screen overflow-hidden bg-[#f7f8f6]">
-      <RecoveryHashForwarder />
       <header className="mx-auto flex max-w-[1240px] items-center justify-between px-5 py-5 sm:px-8">
         <Link href="/" aria-label="SpendFlow home"><Brand /></Link>
         <nav className="flex items-center gap-2 sm:gap-5" aria-label="Account">

@@ -19,6 +19,7 @@ export function PasswordFields({
   const id = useId();
   const [password, setPassword] = useState("");
   const [confirmation, setConfirmation] = useState("");
+  const [visible, setVisible] = useState(false);
   const strength = passwordStrength(password);
   const tooLong = new TextEncoder().encode(password).length > PASSWORD_MAX_BYTES;
   const mismatch = confirmation.length > 0 && confirmation !== password;
@@ -27,13 +28,13 @@ export function PasswordFields({
     <>
       <label className="label">
         {label}
-        <span id={`${id}-rule`} className="text-[11px] font-normal leading-4 text-[#65716d]">
+        <span id={`${id}-rule`} className="text-xs font-normal leading-4 text-[#65716d]">
           At least {PASSWORD_MIN_LENGTH} characters. Three or four unrelated words make a strong passphrase. Use one you don&apos;t use on any other site.
         </span>
         <input
           className="field"
           name="password"
-          type="password"
+          type={visible ? "text" : "password"}
           autoComplete="new-password"
           minLength={PASSWORD_MIN_LENGTH}
           maxLength={PASSWORD_MAX_BYTES}
@@ -65,7 +66,7 @@ export function PasswordFields({
         <input
           className="field"
           name="confirm_password"
-          type="password"
+          type={visible ? "text" : "password"}
           autoComplete="new-password"
           minLength={PASSWORD_MIN_LENGTH}
           maxLength={PASSWORD_MAX_BYTES}
@@ -78,6 +79,14 @@ export function PasswordFields({
         />
       </label>
       {mismatch && <p id={`${id}-match`} className="-mt-2 text-xs text-[var(--danger)]">The two passwords do not match.</p>}
+      <button
+        type="button"
+        className="-mt-1 min-h-10 justify-self-start text-sm font-medium text-[#265be8] underline underline-offset-2"
+        aria-pressed={visible}
+        onClick={() => setVisible((value) => !value)}
+      >
+        {visible ? "Hide passwords" : "Show passwords"}
+      </button>
     </>
   );
 }

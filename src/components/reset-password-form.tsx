@@ -24,9 +24,9 @@ export function ResetPasswordForm() {
         </p>
       )}
       <form action={action} className="grid gap-4">
-        <PasswordFields label="New password" confirmLabel="Confirm new password" readOnly={isPending} />
+        <PasswordFields label="New password" confirmLabel="Confirm password" readOnly={isPending} />
         <Button type="submit" className="mt-2 w-full" disabled={isPending}>
-          {isPending ? "Saving…" : "Save new password"}
+          {isPending ? "Updating…" : "Update password"}
         </Button>
       </form>
     </>

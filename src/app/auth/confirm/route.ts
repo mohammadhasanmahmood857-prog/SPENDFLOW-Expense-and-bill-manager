@@ -21,6 +21,9 @@ export async function GET(request: NextRequest) {
   } else if (code) {
     ({ error } = await supabase.auth.exchangeCodeForSession(code));
   } else {
+    // Old reset emails pointed here; a used or expired one arrives with no code. Show the reset-link
+    // error screen (with a "request a new link" button), never the email form or the login page.
+    if (next.startsWith("/reset-password")) return NextResponse.redirect(new URL("/auth/recovery?reason=old-link", request.url));
     loginUrl.searchParams.set("error", "The confirmation link is invalid or has expired. Request a new one.");
     loginUrl.searchParams.set("unverified", "1");
     return NextResponse.redirect(loginUrl);
@@ -29,9 +32,10 @@ export async function GET(request: NextRequest) {
   if (error) {
     const isPasswordReset = type === "recovery" || next.startsWith("/reset-password");
     if (isPasswordReset) {
-      const forgotUrl = new URL("/forgot-password", request.url);
-      forgotUrl.searchParams.set("error", "That reset link has expired or was opened in a different browser. Request a new one here and open it in this browser.");
-      return NextResponse.redirect(forgotUrl);
+      // Reset emails sent before the any-browser fix used a code tied to the requesting browser.
+      // Those links can't be completed; explain that on the reset-link screen instead of silently
+      // showing the "enter your email" form, which looked like an endless loop.
+      return NextResponse.redirect(new URL("/auth/recovery?reason=old-link", request.url));
     }
     // A PKCE code opened in a different browser than the one used to sign up cannot start a
     // session here, but Supabase has already confirmed the address by this point.
