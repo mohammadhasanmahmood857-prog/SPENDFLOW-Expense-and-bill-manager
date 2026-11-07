@@ -4,7 +4,6 @@ import { useState } from "react";
 import { saveTransaction } from "@/app/actions";
 import { SubmitButton } from "@/components/submit-button";
 import { CATEGORIES } from "@/lib/finance";
-import { createClient } from "@/lib/supabase/browser";
 
 const receiptExtensions: Record<string, string> = {
   "image/jpeg": "jpg",
@@ -50,6 +49,9 @@ export function TransactionEntryForm({ defaultDate }: { defaultDate: string }) {
       }
       let path: string;
       try {
+        // Loaded only when a receipt is uploaded, so the Transactions page doesn't ship the Supabase
+        // browser client (~260 KB) to everyone who just adds or edits a transaction.
+        const { createClient } = await import("@/lib/supabase/browser");
         const supabase = createClient();
         const { data: { user }, error: authError } = await supabase.auth.getUser();
         if (authError || !user) {
